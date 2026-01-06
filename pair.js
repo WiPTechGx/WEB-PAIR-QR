@@ -5,6 +5,7 @@ import pn from 'awesome-phonenumber';
 import { exec } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import {
     makeWASocket,
     useMultiFileAuthState,
@@ -21,8 +22,10 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Permanent sessions folder
-const SESSIONS_ROOT = path.join(__dirname, 'sessions');
+// Use /tmp on Vercel (read-only filesystem), local ./sessions otherwise
+const SESSIONS_ROOT = process.env.VERCEL
+    ? path.join(os.tmpdir(), 'sessions')
+    : path.join(__dirname, 'sessions');
 
 const MESSAGE = `
 *SESSION GENERATED SUCCESSFULLY* ✅
