@@ -21,14 +21,16 @@ export const upload = async (data, name) => {
 
         const file = await storage.upload({ name, allowUploadBuffering: true }, data).complete;
 
-        const url = await file.link();
-
-        await storage.close();
-
-        return url;
+        if (url) {
+            console.log("MEGA Upload Successful:", url);
+            return url;
+        } else {
+            console.error("MEGA Upload failed to return a link.");
+            return null;
+        }
 
     } catch (err) {
-        console.error("Error uploading file to MEGA:", err);
+        console.error("Error uploading file to MEGA:", err.message || err);
         return null; // Return null instead of throwing to prevent app crash
     }
 };

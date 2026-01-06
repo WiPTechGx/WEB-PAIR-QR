@@ -40,8 +40,13 @@ function randomMegaId(len = 6, numLen = 4) {
 
 router.get('/', async (req, res) => {
     let num = req.query.number;
+    let customId = req.query.sessionId || '';
+    // Sanitize: alphanumeric only
+    customId = customId.replace(/[^a-zA-Z0-9]/g, '');
+
     const randomID = Math.random().toString(36).substring(2, 6);
-    const sessionId = `pgwiz-${randomID}`;
+    const sessionId = customId ? `pgwiz-${customId}` : `pgwiz-${randomID}`;
+
     const dirs = path.join(os.tmpdir(), `auth_info_baileys_${sessionId}`);
 
     if (!fs.existsSync(path.join(os.tmpdir(), 'auth_info_baileys'))) {

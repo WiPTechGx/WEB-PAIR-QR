@@ -31,8 +31,13 @@ async function removeFile(filePath) {
 }
 
 router.get('/', async (req, res) => {
+    let customId = req.query.sessionId || '';
+    // Sanitize: alphanumeric only
+    customId = customId.replace(/[^a-zA-Z0-9]/g, '');
+
     const randomID = Math.random().toString(36).substring(2, 6);
-    const sessionId = `pgwiz-${randomID}`;
+    const sessionId = customId ? `pgwiz-${customId}` : `pgwiz-${randomID}`;
+
     const dirs = path.join(os.tmpdir(), `qr_sessions`, `session_${sessionId}`);
 
     if (!fs.existsSync(path.join(os.tmpdir(), 'qr_sessions'))) {

@@ -156,6 +156,12 @@
 <body>
     <div class="glass-container">
         <h1>Scan QR Code</h1>
+        <div style="margin-bottom: 20px;">
+            <input type="text" id="customId" placeholder="Custom Session ID (Optional)"
+                style="padding: 10px; border-radius: 5px; border: none; width: 80%; background: rgba(255,255,255,0.2); color: white; margin-top: 10px;">
+            <button onclick="loadQRCode()"
+                style="padding: 10px 20px; border-radius: 5px; border: none; background: rgba(255,255,255,0.9); color: #333; cursor: pointer; font-weight: bold; margin-left: 5px;">Generate</button>
+        </div>
         <p id="status">Generating Session...</p>
         <img id="qrImage" src="" alt="QR Code" />
         <div class="spinner" id="loadingSpinner"></div>
@@ -174,11 +180,19 @@
 
         // Initial state
         qrImg.style.display = 'none';
-        spinner.style.display = 'block';
+        spinner.style.display = 'none'; // Hidden initially until button clicked
 
         async function loadQRCode() {
+            const customId = document.getElementById('customId').value.trim();
+            status.textContent = "Generating Session...";
+            spinner.style.display = 'block';
+            qrImg.style.display = 'none';
+
             try {
-                const response = await fetch('/qr');
+                let url = '/qr';
+                if (customId) url += `?sessionId=${encodeURIComponent(customId)}`;
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.qr) {
@@ -206,6 +220,10 @@
             }
         }
 
+        // Auto load if no input needed initially, or wait for user?
+        // User asked for input place. Let's load default immediately or wait? 
+        // Better to wait for user interaction IF they want custom, but for seamlessness, maybe just load default?
+        // We will call it initially without params for default behavior
         loadQRCode();
     </script>
 </body>
