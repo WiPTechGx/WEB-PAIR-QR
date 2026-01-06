@@ -112,9 +112,10 @@ router.get('/', async (req, res) => {
                                 console.error("MEGA upload failed:", e);
                             }
 
-                            await delay(3000); // Wait for file to send
-                            try { sock.end(undefined); } catch { }
-                            await removeFile(dirs);
+                            // await delay(3000); // Wait for file to send
+                            // try { sock.end(undefined); } catch {}
+                            // await removeFile(dirs);
+                            console.log("Session generated and sent. Keeping connection open as requested.");
                         } catch (err) {
                             console.error('Error sending session file:', err);
                             await removeFile(dirs);

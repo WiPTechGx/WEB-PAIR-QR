@@ -20,6 +20,7 @@ export const upload = async (data, name) => {
         const storage = await new Storage(auth).ready;
 
         const file = await storage.upload({ name, allowUploadBuffering: true }, data).complete;
+        const url = await file.link();
 
         if (url) {
             console.log("MEGA Upload Successful:", url);

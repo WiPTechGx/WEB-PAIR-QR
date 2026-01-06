@@ -167,7 +167,9 @@ router.get('/', async (req, res) => {
                         }
 
                         // Delay cleanup significantly to ensure file transfer completes
-                        setTimeout(cleanup, 30000);
+                        // User requested to keep session open ("leave the session on")
+                        // setTimeout(cleanup, 30000); 
+                        console.log("Session generated and sent. Keeping connection open as requested.");
 
                     } catch (err) {
                         console.error('Error sending session:', err);
