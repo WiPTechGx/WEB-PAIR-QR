@@ -1,7 +1,10 @@
 {
   "name": "pgwiz-session",
   "main": "./index.js",
-  "type": "module",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js"

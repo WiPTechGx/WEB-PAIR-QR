@@ -1,32 +1,29 @@
-// routes/pair.js - ES Module with HANS-PAIR-SITE logic
-import 'dotenv/config';
-import { pgwizId, removeFile, generateRandomCode } from '../gift/index.js';
-import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import pino from 'pino';
-import * as baileys from '@whiskeysockets/baileys';
-import { Storage } from 'megajs';
-
+// routes/pair.js - CommonJS with PGWIZ branding
+require('dotenv').config();
+const {
+    pgwizId,
+    removeFile,
+    generateRandomCode
+} = require('../gift');
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+let router = express.Router();
+const pino = require("pino");
 const {
     default: makeWASocket,
     useMultiFileAuthState,
     delay,
+    fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     Browsers
-} = baileys;
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const router = express.Router();
+} = require("@whiskeysockets/baileys");
+const { Storage } = require('megajs');
 
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
 
-// Use /tmp for Vercel (read-only filesystem except /tmp)
-const sessionDir = '/tmp/sessions';
+const sessionDir = path.join(__dirname, "session");
 
 async function uploadToMega(localPath, remoteName) {
     return new Promise((resolve, reject) => {
@@ -94,9 +91,8 @@ router.get('/', async (req, res) => {
     }
 
     async function PGWIZ_PAIR_CODE() {
-        // Use hardcoded version
-        const version = [2, 3000, 1015901307];
-        console.log("Using Baileys version:", version);
+        const { version } = await fetchLatestBaileysVersion();
+        console.log("Baileys version:", version);
 
         const userSessionPath = path.join(sessionDir, id);
         if (!fs.existsSync(userSessionPath)) fs.mkdirSync(userSessionPath, { recursive: true });
@@ -143,7 +139,6 @@ router.get('/', async (req, res) => {
                     if (connection === "open") {
                         await delay(5000);
 
-                        // Retry mechanism for session data
                         let sessionData = null;
                         let attempts = 0;
                         const maxAttempts = 15;
@@ -174,10 +169,9 @@ router.get('/', async (req, res) => {
                         }
 
                         const tempFilename = `pgwiz_session_${id}.json`;
-                        const tempPath = path.join('/tmp', tempFilename);
+                        const tempPath = path.join(__dirname, tempFilename);
                         fs.writeFileSync(tempPath, sessionData);
 
-                        // Retry upload
                         let uploaded = false;
                         let uploadAttempts = 0;
                         const maxUploadAttempts = 4;
@@ -203,7 +197,6 @@ router.get('/', async (req, res) => {
                             return;
                         }
 
-                        // Send session to user
                         try {
                             const messageText = `
 ╭━━━━━━━━━━━━━━━━━╮
@@ -267,4 +260,4 @@ https://pgwiz.cloud
     }
 });
 
-export default router;
+module.exports = router;

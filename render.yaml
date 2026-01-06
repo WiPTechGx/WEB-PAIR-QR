@@ -1,0 +1,21 @@
+# render.yaml - Render Blueprint for PGWIZ Session
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: pgwiz-session
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MEGA_EMAIL
+        sync: false
+      - key: MEGA_PASSWORD
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true

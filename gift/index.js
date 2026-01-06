@@ -1,7 +1,7 @@
-// gift/index.js - ES Module
-import fs from 'fs';
+// gift/index.js - CommonJS
+const fs = require('fs');
 
-export function pgwizId(num = 4) {
+function pgwizId(num = 4) {
   let result = "";
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < num; i++) {
@@ -10,7 +10,7 @@ export function pgwizId(num = 4) {
   return result;
 }
 
-export function generateRandomCode() {
+function generateRandomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
   for (let i = 0; i < 8; i++) {
@@ -19,8 +19,14 @@ export function generateRandomCode() {
   return result;
 }
 
-export async function removeFile(filePath) {
+async function removeFile(filePath) {
   if (fs.existsSync(filePath)) {
     await fs.promises.rm(filePath, { recursive: true, force: true });
   }
 }
+
+module.exports = {
+  pgwizId,
+  generateRandomCode,
+  removeFile
+};

@@ -1,20 +1,11 @@
-import 'dotenv/config';
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import bodyParser from 'body-parser';
-import qrRoute from './routes/qr.js';
-import pairRoute from './routes/pair.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+require('dotenv').config();
+const express = require('express');
+const path = require('path');
 const app = express();
+const bodyParser = require("body-parser");
 const PORT = process.env.PORT || 8000;
-
-// Increase event listeners
-import { EventEmitter } from 'events';
-EventEmitter.defaultMaxListeners = 2000;
+const { qrRoute, pairRoute } = require('./routes');
+require('events').EventEmitter.defaultMaxListeners = 2000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -41,18 +32,13 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Start server for local dev
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, () => {
-    console.log(`
+app.listen(PORT, () => {
+  console.log(`
 PGWIZ Session Server
 ====================
 Server Running on http://localhost:${PORT}
 QR Code: /qr
 Pair Code: /pair or /code?number=XXX
+Health: /health
 `);
-  });
-}
-
-// Export for Vercel
-export default app;
+});
