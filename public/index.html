@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PGWIZ Session | WhatsApp Bot</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --primary: #8b5cf6;
+            --accent: #22d3ee;
+            --bg: #0b061a;
+            --glass: rgba(255, 255, 255, 0.05);
+            --text: #ffffff;
+            --muted: #a1a1aa;
+            --shadow: 0 15px 40px rgba(139, 92, 246, .25);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Poppins, system-ui, sans-serif;
+            background: radial-gradient(circle at top, #1a103d, var(--bg));
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 1.2rem 2rem;
+            background: rgba(10, 5, 30, .75);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(139, 92, 246, .2);
+            z-index: 999;
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-weight: 700;
+            font-size: 1.4rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .menu a {
+            color: var(--muted);
+            margin-left: 1.2rem;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .menu a:hover {
+            color: var(--primary);
+        }
+
+        .hero {
+            padding: 9rem 1.5rem 6rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 650px;
+            margin: 1.5rem auto;
+            color: var(--muted);
+            font-size: 1.1rem;
+        }
+
+        .hero-actions {
+            margin-top: 2.5rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: .9rem 2.2rem;
+            border-radius: 999px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            transition: .3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #6d28d9);
+            color: white;
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+        }
+
+        .btn-ghost {
+            border: 1px solid rgba(255, 255, 255, .15);
+            color: var(--text);
+            background: transparent;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .cta {
+            margin: 4rem auto;
+            padding: 4rem 1.5rem;
+            text-align: center;
+            background: linear-gradient(180deg, transparent, rgba(139, 92, 246, .1));
+            border-top: 1px solid rgba(139, 92, 246, .2);
+        }
+
+        .cta h2 {
+            font-size: 2.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            color: var(--muted);
+            max-width: 600px;
+            margin: auto;
+        }
+
+        footer {
+            padding: 3rem 1.5rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        footer p {
+            color: var(--muted);
+            font-size: .9rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 2.3rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div class="nav-inner">
+            <div class="brand">
+                <i class="fas fa-robot"></i> PGWIZ SESSION
+            </div>
+            <div class="menu">
+                <a href="./pair"><i class="fas fa-link"></i> Pair</a>
+                <a href="./qr"><i class="fas fa-qrcode"></i> QR</a>
+                <a href="https://pgwiz.cloud" target="_blank">
+                    <i class="fas fa-globe"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>Minimal. Fast. Powerful.</h1>
+        <p>
+            PGWIZ Session lets you connect your WhatsApp bot instantly using
+            Pair Code or QR — clean interface, zero stress, pure power ⚡
+        </p>
+
+        <div class="hero-actions">
+            <a href="./pair" class="btn btn-primary">
+                <i class="fas fa-link"></i> Pair Code
+            </a>
+            <a href="./qr" class="btn btn-ghost">
+                <i class="fas fa-qrcode"></i> QR Code
+            </a>
+        </div>
+    </section>
+
+    <section class="cta">
+        <h2>Connect in Seconds 🚀</h2>
+        <p>
+            No clutter. No confusion. Just scan or pair and let your bot breathe.
+        </p>
+    </section>
+
+    <footer>
+        <p>
+            Powered by <a href="https://pgwiz.cloud" target="_blank">PGWIZ</a> 💜
+            <br>
+            Made with love by <strong>pgwiz</strong>
+        </p>
+    </footer>
+
+</body>
+
+</html>

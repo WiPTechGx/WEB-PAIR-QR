@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HANS BYTE V2 | Pairing</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+:root{
+    --bg:#0b0b12;
+    --glass:rgba(255,255,255,0.08);
+    --border:rgba(255,255,255,0.15);
+    --primary:#7f5af0;
+    --secondary:#ff7ac6;
+    --text:#ffffff;
+    --muted:#b8b8d1;
+    --success:#3ddc97;
+    --error:#ff4d4d;
+    --blur: blur(18px);
+    --radius:18px;
+    --glow:0 0 25px rgba(127,90,240,.45);
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:'Poppins',system-ui,sans-serif;
+    background:
+        radial-gradient(circle at top left, #1b1b3a, transparent 45%),
+        radial-gradient(circle at bottom right, #2b1247, transparent 45%),
+        var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    overflow:hidden;
+}
+
+.particles{
+    position:fixed;
+    inset:0;
+    z-index:-1;
+}
+
+.particle{
+    position:absolute;
+    width:6px;
+    height:6px;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    border-radius:50%;
+    opacity:.35;
+    animation: float 18s linear infinite;
+}
+
+@keyframes float{
+    from{transform:translateY(110vh) rotate(0deg);}
+    to{transform:translateY(-120vh) rotate(360deg);}
+}
+
+.home-btn{
+    position:fixed;
+    top:18px;
+    right:18px;
+    padding:10px 18px;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    color:#fff;
+    text-decoration:none;
+    border-radius:999px;
+    font-weight:600;
+    box-shadow:var(--glow);
+    display:flex;
+    gap:8px;
+    align-items:center;
+}
+
+.container{
+    width:100%;
+    max-width:480px;
+    background:var(--glass);
+    backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:28px;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+    animation:fadeUp .6s ease;
+}
+
+@keyframes fadeUp{
+    from{opacity:0;transform:translateY(25px)}
+    to{opacity:1;transform:none}
+}
+
+.logo{
+    width:96px;
+    height:96px;
+    margin:0 auto 16px;
+}
+
+.logo img{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    border:3px solid var(--primary);
+    box-shadow:var(--glow);
+}
+
+h1{
+    text-align:center;
+    font-size:2rem;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-bottom:10px;
+}
+
+p{
+    text-align:center;
+    color:var(--muted);
+    margin-bottom:22px;
+    font-size:.95rem;
+}
+
+label{
+    font-size:.85rem;
+    color:var(--muted);
+}
+
+.input-box{
+    position:relative;
+    margin-top:8px;
+}
+
+.input-box i{
+    position:absolute;
+    left:14px;
+    top:50%;
+    transform:translateY(-50%);
+    color:var(--muted);
+}
+
+input{
+    width:100%;
+    padding:14px 14px 14px 42px;
+    background:rgba(0,0,0,.35);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--text);
+    font-size:1rem;
+    outline:none;
+}
+
+input:focus{
+    border-color:var(--primary);
+    box-shadow:0 0 0 3px rgba(127,90,240,.25);
+}
+
+.error{
+    display:none;
+    color:var(--error);
+    font-size:.85rem;
+    margin-top:6px;
+}
+
+.btn{
+    margin-top:20px;
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:14px;
+    font-weight:700;
+    color:#fff;
+    cursor:pointer;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    box-shadow:var(--glow);
+}
+
+.btn:hover{
+    transform:translateY(-2px);
+}
+
+.spinner{
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    border:4px solid rgba(255,255,255,.2);
+    border-top:4px solid var(--primary);
+    animation:spin 1s linear infinite;
+    margin:20px auto;
+    display:none;
+}
+
+@keyframes spin{
+    to{transform:rotate(360deg)}
+}
+
+#result{
+    display:none;
+    margin-top:20px;
+    padding:18px;
+    border-radius:14px;
+    background:rgba(0,0,0,.35);
+    border:1px solid var(--border);
+    text-align:center;
+}
+
+#pair-code{
+    font-size:1.6rem;
+    letter-spacing:3px;
+    font-weight:800;
+    margin:10px 0;
+    color:var(--primary);
+    text-shadow:var(--glow);
+}
+
+.actions{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+}
+
+.actions button,
+.actions a{
+    flex:1;
+    padding:10px;
+    border-radius:12px;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+    text-decoration:none;
+    text-align:center;
+}
+
+.copy{
+    background:var(--primary);
+    color:#fff;
+}
+
+.back{
+    border:1px solid var(--primary);
+    color:var(--primary);
+    background:transparent;
+}
+
+.success{
+    display:none;
+    margin-top:10px;
+    color:var(--success);
+    font-size:.9rem;
+}
+
+footer{
+    margin-top:18px;
+    text-align:center;
+    font-size:.75rem;
+    color:var(--muted);
+}
+
+footer span{
+    color:var(--secondary);
+}
+</style>
+</head>
+
+<body>
+
+<div class="particles" id="particles"></div>
+
+<a href="./" class="home-btn">
+<i class="fas fa-home"></i> Home
+</a>
+
+<div class="container">
+
+<div class="logo">
+<img src="https://files.catbox.moe/kzqia3.jpeg">
+</div>
+
+<h1>HANS BYTE V2</h1>
+<p>Enter your WhatsApp number (no + sign)</p>
+
+<label>Phone Number</label>
+<div class="input-box">
+<i class="fas fa-phone"></i>
+<input id="phone" placeholder="2547xxxxxxxx" inputmode="numeric">
+</div>
+<div class="error" id="error">Invalid number (10–15 digits)</div>
+
+<button class="btn" id="submit">GET PAIR CODE</button>
+
+<div class="spinner" id="spinner"></div>
+
+<div id="result">
+<p>Your pairing code:</p>
+<div id="pair-code"></div>
+
+<div class="actions">
+<button class="copy" id="copy"><i class="fas fa-copy"></i></button>
+<a class="back" href="./"><i class="fas fa-arrow-left"></i></a>
+</div>
+
+<div class="success" id="success">Copied to clipboard ✔</div>
+</div>
+
+<footer>
+Powered by <span>HANS BYTE V2</span> • Pairing system credits to <span>Gifted MD</span>
+</footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js"></script>
+<script>
+const particles=document.getElementById("particles");
+for(let i=0;i<24;i++){
+    const p=document.createElement("div");
+    p.className="particle";
+    p.style.left=Math.random()*100+"%";
+    p.style.animationDuration=12+Math.random()*10+"s";
+    p.style.opacity=Math.random();
+    particles.appendChild(p);
+}
+
+const phone=document.getElementById("phone");
+const submit=document.getElementById("submit");
+const error=document.getElementById("error");
+const spinner=document.getElementById("spinner");
+const result=document.getElementById("result");
+const pair=document.getElementById("pair-code");
+const copy=document.getElementById("copy");
+const success=document.getElementById("success");
+
+submit.onclick=async()=>{
+    const num=phone.value.replace(/\D/g,"");
+    if(num.length<10||num.length>15){
+        error.style.display="block";
+        return;
+    }
+    error.style.display="none";
+    spinner.style.display="block";
+    submit.disabled=true;
+
+    try{
+        const {data}=await axios.get(`/code?number=${num}`);
+        pair.textContent=data.code||"ERROR";
+        result.style.display="block";
+    }catch{
+        pair.textContent="SERVICE ERROR";
+        result.style.display="block";
+    }finally{
+        spinner.style.display="none";
+        submit.disabled=false;
+    }
+};
+
+copy.onclick=()=>{
+    navigator.clipboard.writeText(pair.textContent);
+    success.style.display="block";
+    setTimeout(()=>success.style.display="none",2000);
+};
+</script>
+
+</body>
+</html>

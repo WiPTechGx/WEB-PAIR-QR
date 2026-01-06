@@ -1,8 +1,8 @@
 {
-  "name": "web-pair",
+  "name": "pgwiz-session",
   "version": "1.0.0",
-  "type": "module",
-  "description": "A multi-functional WhatsApp bot Pairing Web and QR Scanner.",
+  "type": "commonjs",
+  "description": "PGWIZ WhatsApp Session - QR and Pair Code pairing.",
   "main": "index.js",
   "engines": {
     "node": ">=20.0.0"
