@@ -119,10 +119,14 @@ router.get('/', async (req, res) => {
                                 console.error("MEGA upload failed:", e);
                             }
 
-                            // await delay(3000); // Wait for file to send
-                            // try { sock.end(undefined); } catch {}
-                            // await removeFile(dirs);
-                            console.log("Session generated and sent. Connection will be maintained.");
+                            // ✅ SESSION COMPLETE - keep socket alive for persistent connection
+                            console.log("✅ Session generation complete! Keeping connection alive.");
+                            console.log("📁 Session saved at:", dirs);
+                            console.log("🔗 Session ID:", sessionId);
+                            // DON'T close socket - keep session alive!
+                            // await delay(3000);
+                            // try { sock.end(undefined); } catch { }
+                            // Don't call runSession() again - we're done!
                         } catch (err) {
                             console.error('Error sending session file:', err);
                             // Don't delete session - might still be valid
@@ -135,16 +139,19 @@ router.get('/', async (req, res) => {
                     const isLoggedOut = code === 401;
                     const hasValidCreds = sock.authState?.creds?.registered === true;
 
-                    console.log(`Connection closed. Status: ${code}, Logged out: ${isLoggedOut}, Has valid creds: ${hasValidCreds}`);
+                    console.log(`Connection closed. Status: ${code}, Logged out: ${isLoggedOut}`);
 
                     if (isLoggedOut) {
-                        console.log('Session was logged out by user. Session folder preserved.');
-                        // Don't delete creds
-                    } else {
-                        // Reconnect with fresh state
-                        console.log('Temporary disconnect. Reconnecting with fresh auth state...');
+                        console.log('Session was logged out. Files preserved.');
+                        // Don't reconnect - session is done
+                    } else if (!sock.authState?.creds?.registered) {
+                        // Only reconnect if creds not yet registered (still pairing)
+                        console.log('Still pairing. Reconnecting...');
                         await delay(3000);
                         runSession();
+                    } else {
+                        // Session was registered but closed - this is fine, session complete
+                        console.log('Session complete. Not reconnecting. Files preserved.');
                     }
                 }
             });

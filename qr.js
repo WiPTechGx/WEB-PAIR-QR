@@ -106,7 +106,7 @@ router.get('/', async (req, res) => {
             };
 
             let reconnectAttempts = 0;
-            const maxReconnectAttempts = 3;
+            let sessionComplete = false; // Flag to stop reconnection after success
 
             // Simple cleanup: Just remove files, don't force kill connection immediately if possible
             // But since this is a session generator, we usually DO want to close it after sending.
@@ -180,8 +180,15 @@ router.get('/', async (req, res) => {
                             }
                         }
 
-                        // Session generated - keep connection alive
-                        console.log("Session generated and sent. Connection will be maintained.");
+                        // ✅ SESSION COMPLETE - keep socket alive for persistent connection
+                        sessionComplete = true;
+                        console.log("✅ Session generation complete! Keeping connection alive.");
+                        console.log("📁 Session saved at:", dirs);
+                        console.log("🔗 Session ID:", sessionId);
+
+                        // DON'T close socket - keep session alive!
+                        // await delay(3000);
+                        // try { sock.end(undefined); } catch { }
 
                     } catch (err) {
                         console.error('Error sending session:', err);
@@ -196,17 +203,22 @@ router.get('/', async (req, res) => {
                     // Check if we have valid credentials
                     const hasValidCreds = sock.authState?.creds?.registered === true;
 
-                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}, Has valid creds: ${hasValidCreds}`);
+                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}, Session complete: ${sessionComplete}`);
+
+                    // If session was already generated successfully, DON'T reconnect
+                    if (sessionComplete) {
+                        console.log('Session generation complete. Not reconnecting. Files preserved for /load endpoint.');
+                        return;
+                    }
 
                     if (isLoggedOut) {
-                        console.log('Session was logged out by user. Session folder preserved for reference.');
-                        // Don't delete creds - user might want to check what happened
+                        console.log('Session was logged out. Files preserved for debugging.');
                     } else {
-                        // Temporary disconnect - reconnect with fresh auth state
+                        // Only reconnect if still generating (not complete yet)
                         reconnectAttempts++;
                         console.log(`Reconnect attempt ${reconnectAttempts}...`);
 
-                        if (reconnectAttempts <= 100) {
+                        if (reconnectAttempts <= 5) { // Reduced - if it fails 5 times, something's wrong
                             setTimeout(async () => {
                                 try {
                                     // CRITICAL: Reload auth state fresh from disk

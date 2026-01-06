@@ -42,8 +42,53 @@ app.use('/', async (req, res) => {
     res.sendFile(path.join(__dirname, 'main.html'));
 });
 
-app.listen(PORT, () => {
+// Auto-load all saved sessions on startup
+import fs from 'fs-extra';
+
+const SESSIONS_ROOT = path.join(__dirname, 'sessions');
+
+async function autoLoadSessions() {
+    if (!fs.existsSync(SESSIONS_ROOT)) {
+        console.log('📂 No sessions folder found. Skipping auto-load.');
+        return;
+    }
+
+    const sessions = await fs.readdir(SESSIONS_ROOT);
+    const validSessions = [];
+
+    for (const sessionId of sessions) {
+        const credsPath = path.join(SESSIONS_ROOT, sessionId, 'creds.json');
+        if (fs.existsSync(credsPath)) {
+            validSessions.push(sessionId);
+        }
+    }
+
+    if (validSessions.length === 0) {
+        console.log('📂 No valid sessions found to auto-load.');
+        return;
+    }
+
+    console.log(`🚀 Auto-loading ${validSessions.length} saved session(s)...`);
+
+    for (const sessionId of validSessions) {
+        try {
+            // Hit the /load endpoint internally to load each session
+            const response = await fetch(`http://localhost:${PORT}/load?sessionId=${sessionId}`);
+            const result = await response.json();
+            console.log(`   ✅ Loaded session: ${sessionId}`, result.message || '');
+        } catch (err) {
+            console.error(`   ❌ Failed to load session ${sessionId}:`, err.message);
+        }
+    }
+
+    console.log('🎉 Auto-load complete!');
+}
+
+app.listen(PORT, async () => {
     console.log(`YoutTube: @GlobalTechInfo\nGitHub: @GlobalTechInfo\nServer running on http://localhost:${PORT}`);
+
+    // Wait a moment for server to be ready, then auto-load sessions
+    setTimeout(autoLoadSessions, 2000);
 });
 
 export default app;
