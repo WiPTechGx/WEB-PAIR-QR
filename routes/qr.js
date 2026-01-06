@@ -1,7 +1,7 @@
 // routes/qr.js
 require('dotenv').config();
 const {
-    giftedId,
+    pgwizId,
     removeFile
 } = require('../gift');
 const QRCode = require('qrcode');
@@ -11,7 +11,7 @@ const fs = require('fs');
 let router = express.Router();
 const pino = require("pino");
 const {
-    default: giftedConnect,
+    default: pgwizConnect,
     useMultiFileAuthState,
     Browsers,
     delay,
@@ -38,20 +38,25 @@ async function uploadToMega(localPath, remoteName) {
                 }
 
                 try {
+                    // Create upload stream
                     const uploadStream = storage.upload({
                         name: remoteName,
                         allowUploadBuffering: true
                     });
 
+                    // Pipe the file to upload stream
                     fs.createReadStream(localPath).pipe(uploadStream);
 
+                    // Listen for 'add' event (when file is added to storage)
                     storage.on('add', (file) => {
+                        // Get link with callback
                         file.link((err, link) => {
                             if (err) {
                                 return reject(err);
                             }
 
                             try {
+                                // Extract file ID and hash from URL
                                 let fileInfo = '';
                                 if (link.includes('/file/')) {
                                     fileInfo = link.split('/file/')[1];
@@ -62,6 +67,8 @@ async function uploadToMega(localPath, remoteName) {
                                 }
 
                                 const formattedLink = `PGWIZ~${fileInfo}`;
+
+                                // Close storage connection
                                 storage.close();
 
                                 resolve({
@@ -75,6 +82,7 @@ async function uploadToMega(localPath, remoteName) {
                         });
                     });
 
+                    // Listen for errors
                     storage.on('error', (err) => {
                         reject(err);
                     });
@@ -90,10 +98,10 @@ async function uploadToMega(localPath, remoteName) {
 }
 
 router.get('/', async (req, res) => {
-    const id = giftedId();
+    const id = pgwizId();
     let responseSent = false;
     let sessionCleanedUp = false;
-    let sessionSent = false;  // Prevent reconnect after session is sent
+    let sessionSent = false;
 
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
@@ -116,7 +124,7 @@ router.get('/', async (req, res) => {
         const { state, saveCreds } = await useMultiFileAuthState(userSessionPath);
 
         try {
-            let sock = giftedConnect({
+            let sock = pgwizConnect({
                 version,
                 auth: state,
                 printQRInTerminal: false,
@@ -143,7 +151,7 @@ router.get('/', async (req, res) => {
                             <!DOCTYPE html>
                             <html>
                             <head>
-                                <title>PGWIZ Session | QR CODE</title>
+                                <title>PGWIZ | QR CODE</title>
                                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                                 <style>
                                     body {
@@ -159,7 +167,10 @@ router.get('/', async (req, res) => {
                                         padding: 20px;
                                         box-sizing: border-box;
                                     }
-                                    .container { width: 100%; max-width: 600px; }
+                                    .container {
+                                        width: 100%;
+                                        max-width: 600px;
+                                    }
                                     .qr-container {
                                         position: relative;
                                         margin: 20px auto;
@@ -179,7 +190,11 @@ router.get('/', async (req, res) => {
                                                     0 0 0 20px rgba(138, 43, 226, 0.1),
                                                     0 0 40px rgba(138, 43, 226, 0.4);
                                     }
-                                    .qr-code img { width: 100%; height: 100%; border-radius: 10px; }
+                                    .qr-code img {
+                                        width: 100%;
+                                        height: 100%;
+                                        border-radius: 10px;
+                                    }
                                     h1 {
                                         color: #fff;
                                         margin: 0 0 15px 0;
@@ -188,7 +203,11 @@ router.get('/', async (req, res) => {
                                         text-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
                                         letter-spacing: 2px;
                                     }
-                                    p { color: #bbb; margin: 20px 0; font-size: 16px; }
+                                    p {
+                                        color: #bbb;
+                                        margin: 20px 0;
+                                        font-size: 16px;
+                                    }
                                     .back-btn {
                                         display: inline-block;
                                         padding: 14px 32px;
@@ -205,12 +224,36 @@ router.get('/', async (req, res) => {
                                         text-transform: uppercase;
                                         letter-spacing: 1px;
                                     }
-                                    .back-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 30px rgba(138, 43, 226, 0.6); }
-                                    .pulse { animation: pulse 2s infinite; }
+                                    .back-btn:hover {
+                                        transform: translateY(-3px);
+                                        box-shadow: 0 6px 30px rgba(138, 43, 226, 0.6);
+                                    }
+                                    .pulse {
+                                        animation: pulse 2s infinite;
+                                    }
                                     @keyframes pulse {
-                                        0% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.6); }
-                                        70% { box-shadow: 0 0 0 20px rgba(138, 43, 226, 0); }
-                                        100% { box-shadow: 0 0 0 0 rgba(138, 43, 226, 0); }
+                                        0% {
+                                            box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.6);
+                                        }
+                                        70% {
+                                            box-shadow: 0 0 0 20px rgba(138, 43, 226, 0);
+                                        }
+                                        100% {
+                                            box-shadow: 0 0 0 0 rgba(138, 43, 226, 0);
+                                        }
+                                    }
+                                    @media (max-width: 480px) {
+                                        .qr-container {
+                                            width: 260px;
+                                            height: 260px;
+                                        }
+                                        .qr-code {
+                                            width: 240px;
+                                            height: 240px;
+                                        }
+                                        h1 {
+                                            font-size: 26px;
+                                        }
                                     }
                                 </style>
                             </head>
@@ -225,6 +268,16 @@ router.get('/', async (req, res) => {
                                     <p>Scan this QR code with WhatsApp to connect</p>
                                     <a href="./" class="back-btn">Back</a>
                                 </div>
+                                <script>
+                                    document.querySelector('.back-btn').addEventListener('mousedown', function(e) {
+                                        this.style.transform = 'translateY(1px)';
+                                        this.style.boxShadow = '0 2px 10px rgba(138, 43, 226, 0.4)';
+                                    });
+                                    document.querySelector('.back-btn').addEventListener('mouseup', function(e) {
+                                        this.style.transform = 'translateY(-3px)';
+                                        this.style.boxShadow = '0 6px 30px rgba(138, 43, 226, 0.6)';
+                                    });
+                                </script>
                             </body>
                             </html>
                         `);
@@ -293,6 +346,7 @@ router.get('/', async (req, res) => {
                         }
 
                         try {
+                            // First message with formatted info
                             const messageText = `
 ╭━━━━━━━━━━━━━━━━━╮
 ┃ *PGWIZ SESSION* ┃
@@ -303,27 +357,36 @@ router.get('/', async (req, res) => {
 📁 *Session ID:*
 \`\`\`${megaLink}\`\`\`
 
-🔗 *Profile:*
+🔗 *Website:*
 https://pgwiz.cloud
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*
 `.trim();
 
-                            await sock.sendMessage(sock.user.id, { text: messageText });
+                            await sock.sendMessage(sock.user.id, {
+                                text: messageText
+                            });
+
                             console.log("✅ First message sent successfully!");
 
+                            // Wait a bit before sending second message
                             await delay(1000);
-                            await sock.sendMessage(sock.user.id, { text: megaLink });
+
+                            // Second message - just the session ID alone
+                            await sock.sendMessage(sock.user.id, {
+                                text: megaLink
+                            });
+
                             console.log("✅ Session ID resent successfully!");
                         } catch (sendErr) {
                             console.error("Failed to send message:", sendErr);
                         }
 
                         await delay(2000);
-                        sessionSent = true;  // Mark as done
+                        sessionSent = true;
                         try { await sock.ws.close(); } catch (e) { }
                         await cleanUpSession();
-                        return;  // Don't process any more events
+                        return;
 
                     } else if (connection === "close" && !sessionSent && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode != 401) {
                         console.log("Connection closed unexpectedly, attempting reconnect in 5s...");

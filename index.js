@@ -6,8 +6,8 @@ __path = process.cwd()
 const bodyParser = require("body-parser");
 const PORT = process.env.PORT || 8000;
 const {
-    qrRoute,
-    pairRoute
+  qrRoute,
+  pairRoute
 } = require('./routes');
 require('events').EventEmitter.defaultMaxListeners = 2000;
 
@@ -20,25 +20,25 @@ app.use('/qr', qrRoute);
 app.use('/code', pairRoute);
 
 app.get('/pair', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'pair.html'));
+  res.sendFile(path.join(__dirname, 'public', 'pair.html'));
 });
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 
 app.get('/health', (req, res) => {
-    res.json({
-        status: 200,
-        success: true,
-        service: 'PGWIZ Session',
-        timestamp: new Date().toISOString()
-    });
+  res.json({
+    status: 200,
+    success: true,
+    service: 'PGWIZ Session',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
-    console.log(`
+  console.log(`
 PGWIZ Session Server
 ====================
 Server Running on http://localhost:` + PORT + `

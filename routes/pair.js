@@ -1,7 +1,7 @@
 // routes/pair.js
 require('dotenv').config();
 const {
-    giftedId,
+    pgwizId,
     removeFile,
     generateRandomCode
 } = require('../gift');
@@ -11,7 +11,7 @@ const path = require('path');
 let router = express.Router();
 const pino = require("pino");
 const {
-    default: giftedConnect,
+    default: pgwizConnect,
     useMultiFileAuthState,
     delay,
     fetchLatestBaileysVersion,
@@ -32,7 +32,7 @@ async function uploadToMega(localPath, remoteName) {
             const storage = new Storage({
                 email: MEGA_EMAIL,
                 password: MEGA_PASSWORD,
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'
             }, (error) => {
                 if (error) {
                     return reject(error);
@@ -48,7 +48,9 @@ async function uploadToMega(localPath, remoteName) {
 
                     storage.on('add', (file) => {
                         file.link((err, link) => {
-                            if (err) return reject(err);
+                            if (err) {
+                                return reject(err);
+                            }
 
                             try {
                                 let fileInfo = '';
@@ -63,14 +65,20 @@ async function uploadToMega(localPath, remoteName) {
                                 const formattedLink = `PGWIZ~${fileInfo}`;
                                 storage.close();
 
-                                resolve({ link: formattedLink, fullLink: link, file });
+                                resolve({
+                                    link: formattedLink,
+                                    fullLink: link,
+                                    file
+                                });
                             } catch (linkErr) {
                                 reject(linkErr);
                             }
                         });
                     });
 
-                    storage.on('error', (err) => reject(err));
+                    storage.on('error', (err) => {
+                        reject(err);
+                    });
 
                 } catch (uploadErr) {
                     reject(uploadErr);
@@ -83,11 +91,11 @@ async function uploadToMega(localPath, remoteName) {
 }
 
 router.get('/', async (req, res) => {
-    const id = giftedId();
+    const id = pgwizId();
     let num = req.query.number || '';
     let responseSent = false;
     let sessionCleanedUp = false;
-    let sessionSent = false;  // Prevent reconnect after session is sent
+    let sessionSent = false;
 
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
@@ -110,7 +118,7 @@ router.get('/', async (req, res) => {
         const { state, saveCreds } = await useMultiFileAuthState(userSessionPath);
 
         try {
-            let sock = giftedConnect({
+            let sock = pgwizConnect({
                 version,
                 auth: {
                     creds: state.creds,
@@ -218,7 +226,7 @@ router.get('/', async (req, res) => {
 📁 *Session ID:*
 \`\`\`${megaLink}\`\`\`
 
-🔗 *Profile:*
+🔗 *Website:*
 https://pgwiz.cloud
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*
@@ -235,10 +243,10 @@ https://pgwiz.cloud
                         }
 
                         await delay(2000);
-                        sessionSent = true;  // Mark as done
+                        sessionSent = true;
                         try { await sock.ws.close(); } catch (e) { }
                         await cleanUpSession();
-                        return;  // Don't process any more events
+                        return;
 
                     } else if (connection === "close" && !sessionSent && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode != 401) {
                         console.log("Connection closed unexpectedly, attempting reconnect in 5s...");
