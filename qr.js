@@ -203,9 +203,12 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Error handling
+// Error handling - suppress harmless Baileys errors after socket close
 process.on('uncaughtException', (err) => {
-    const ignore = ['conflict', 'not-authorized', 'Connection Closed', 'Timed Out', 'Stream Errored'];
+    const ignore = [
+        'conflict', 'not-authorized', 'Connection Closed', 'Timed Out',
+        'Stream Errored', 'Request Time-out', '1006', 'statusCode: 408'
+    ];
     if (!ignore.some(x => String(err).includes(x))) {
         console.error('Uncaught exception:', err);
     }
