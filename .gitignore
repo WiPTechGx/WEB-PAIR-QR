@@ -1,0 +1,9 @@
+node_modules/
+.env
+qr_sessions/
+auth_info_baileys/
+auth_info_baileys_*/
+npm-debug.log
+yarn-error.log
+.DS_Store
+Thumbs.db

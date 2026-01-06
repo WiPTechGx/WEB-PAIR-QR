@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pair with Me</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.1);
+      --glass-border: rgba(255, 255, 255, 0.2);
+      --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      --text-color: #ffffff;
+      --input-bg: rgba(255, 255, 255, 0.15);
+      --btn-bg: rgba(255, 255, 255, 0.25);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at top left, #1a2a6c, #b21f1f, #fdbb2d);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      overflow-y: auto;
+      /* Allow scrolling */
+      color: var(--text-color);
+    }
+
+    @keyframes gradientBG {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .glass-container {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 24px;
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      padding: 3rem;
+      text-align: center;
+      max-width: 90%;
+      width: 400px;
+      animation: fadeIn 1s ease-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h3 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    h6 {
+      font-size: 1rem;
+      margin-bottom: 2rem;
+      opacity: 0.8;
+      font-weight: 300;
+      margin-top: 0;
+    }
+
+    .input-group {
+      display: flex;
+      width: 100%;
+      background: var(--input-bg);
+      border-radius: 12px;
+      padding: 5px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--glass-border);
+    }
+
+    input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 15px;
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+      min-width: 0;
+      /* Prevents overflow */
+    }
+
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    button#submit {
+      padding: 12px 25px;
+      background: var(--btn-bg);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    button#submit:hover {
+      background: rgba(255, 255, 255, 0.4);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    #pair {
+      margin-top: 2rem;
+      width: 100%;
+    }
+
+    .code-display {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1rem;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      color: #00ffbf;
+      cursor: pointer;
+      border: 1px dashed rgba(255, 255, 255, 0.3);
+      transition: all 0.3s ease;
+      word-break: break-all;
+    }
+
+    .code-display:hover {
+      background: rgba(0, 0, 0, 0.5);
+      border-color: #00ffbf;
+    }
+
+    .error-msg {
+      color: #ff6b6b;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .loading-msg {
+      color: #fff;
+      font-style: italic;
+    }
+
+    /* Remove number spinner */
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="glass-container">
+    <h3>Web Pair</h3>
+    <h6>Enter your WhatsApp number with country code</h6>
+
+    <div class="input-group">
+      <input type="text" id="number" placeholder="Example: 923001234567" autocomplete="off">
+      <button id="submit">Get Code</button>
+    </div>
+
+    <main id="pair"></main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.0.0-alpha.1/axios.min.js"></script>
+  <script>
+    const pairContainer = document.getElementById("pair");
+    const submitBtn = document.getElementById("submit");
+    const numberInput = document.getElementById("number");
+
+    async function copyCode(code) {
+      await navigator.clipboard.writeText(JSON.stringify(code).replace(/"/g, "")); // Simply text
+      const originalText = pairContainer.innerHTML;
+
+      const el = document.getElementById('code-el');
+      const originalContent = el.innerHTML;
+
+      el.innerText = "COPIED!";
+      el.style.color = "#fff";
+
+      setTimeout(() => {
+        el.innerHTML = originalContent;
+        el.style.color = "#00ffbf";
+      }, 1000);
+    }
+
+    submitBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+
+      pairContainer.innerHTML = ''; // Clear previous
+
+      const rawValue = numberInput.value;
+      const cleanNumber = rawValue.replace(/[^0-9]/g, "");
+
+      if (!rawValue) {
+        pairContainer.innerHTML = '<div class="error-msg">Please enter your WhatsApp number</div>';
+        return;
+      }
+
+      if (cleanNumber.length < 10) {
+        pairContainer.innerHTML = '<div class="error-msg">Invalid number format</div>';
+        return;
+      }
+
+      // Formatting for display or request? 
+      // The backend expects just the number in query usually, or handled there.
+      // JS cleaning:
+      numberInput.value = "+" + cleanNumber;
+
+      pairContainer.innerHTML = '<div class="loading-msg">Generated Pairing Code...<br>Please wait...</div>';
+
+      try {
+        const { data } = await axios.get(`/code?number=${cleanNumber}`);
+        const code = data.code || "Service Unavailable";
+
+        pairContainer.innerHTML = `
+            <div id="code-el" class="code-display" onclick="navigator.clipboard.writeText('${code}'); alert('Copied!');">
+                ${code}
+                <div style="font-size: 0.8rem; color: #aaa; margin-top: 5px; font-family: 'Outfit', sans-serif;">Click to Copy</div>
+            </div>
+        `;
+
+      } catch (error) {
+        console.error(error);
+        pairContainer.innerHTML = '<div class="error-msg">Service Unavailable</div>';
+      }
+    });
+  </script>
+</body>
+
+</html>
