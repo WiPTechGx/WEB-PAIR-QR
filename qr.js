@@ -49,6 +49,9 @@ function createSession(sessionPath, phone, callback) {
             auth: state,
             logger: logger.child({}, { level: 'silent' }),
             printQRInTerminal: false,
+            browser: baileys.Browsers.ubuntu('Chrome'),
+            syncFullHistory: false,
+            markOnlineOnConnect: false,
         });
 
         sock.ev.on('creds.update', saveCreds);
