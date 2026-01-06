@@ -119,7 +119,9 @@ router.get('/', async (req, res) => {
                 if (qr && !qrGenerated) await handleQRCode(qr);
 
                 if (connection === 'open') {
+                    reconnectAttempts = 0; // Reset attempts on successful connection
                     console.log(`Connection open! Checking for creds in: ${dirs}`); // Debug log
+                    // ... (rest of open logic matches existing)
                     try {
                         const credsFile = path.join(dirs, 'creds.json');
                         const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
@@ -179,10 +181,16 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    if (statusCode === 401) cleanup();
-                    else if ([503, 515].includes(statusCode)) {
+                    if (statusCode === 401) {
+                        // Logged out
+                        cleanup();
+                    } else {
+                        // Reconnect on everything else (including undefined)
+                        console.log(`Connection closed (Status: ${statusCode}). Reconnecting...`);
                         reconnectAttempts++;
-                        if (reconnectAttempts <= maxReconnectAttempts) {
+                        // Higher limits for persistent mode, or infinite?
+                        // Using a large number to effectively be persistent.
+                        if (reconnectAttempts <= 100) {
                             setTimeout(() => {
                                 try {
                                     sock = makeWASocket(socketConfig);
@@ -191,6 +199,7 @@ router.get('/', async (req, res) => {
                                 } catch (err) { console.error('Reconnect failed:', err); }
                             }, 2000);
                         } else {
+                            console.error("Max reconnect attempts reached. Stopping.");
                             if (!responseSent) res.status(503).send({ code: 'Connection failed after retries' });
                             cleanup();
                         }

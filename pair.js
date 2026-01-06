@@ -128,13 +128,11 @@ router.get('/', async (req, res) => {
                     if (code === 401) {
                         // Session invalid
                         await removeFile(dirs);
-                    } else if (code !== 408 && code !== 515) {
-                        // Reconnect only for restartable errors
-                        // Avoiding infinite loop on generic close
-                        // runSession(); 
-                        // For pairing code, we might not want to aggressively reconnect if it fails initially to get code
                     } else {
-                        // 
+                        // Persistent Reconnect
+                        console.log(`Connection closed (${code}). Reconnecting...`);
+                        await delay(2000);
+                        runSession();
                     }
                 }
             });

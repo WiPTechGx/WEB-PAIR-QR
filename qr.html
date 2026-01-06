@@ -156,11 +156,17 @@
 <body>
     <div class="glass-container">
         <h1>Scan QR Code</h1>
+        <style>
+            /* ... existing styles ... */
+            input::placeholder {
+                color: rgba(255, 255, 255, 0.8);
+            }
+        </style>
         <div style="margin-bottom: 20px;">
             <input type="text" id="customId" placeholder="Custom Session ID (Optional)"
-                style="padding: 10px; border-radius: 5px; border: none; width: 80%; background: rgba(255,255,255,0.2); color: white; margin-top: 10px;">
+                style="padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); width: 80%; background: rgba(255,255,255,0.15); color: #fff; margin-top: 10px; font-family: 'Outfit', sans-serif; font-size: 1rem;">
             <button onclick="loadQRCode()"
-                style="padding: 10px 20px; border-radius: 5px; border: none; background: rgba(255,255,255,0.9); color: #333; cursor: pointer; font-weight: bold; margin-left: 5px;">Generate</button>
+                style="padding: 12px 24px; border-radius: 8px; border: none; background: #fff; color: #333; cursor: pointer; font-weight: bold; margin-left: 5px; font-family: 'Outfit', sans-serif; transition: transform 0.2s;">Generate</button>
         </div>
         <p id="status">Generating Session...</p>
         <img id="qrImage" src="" alt="QR Code" />
