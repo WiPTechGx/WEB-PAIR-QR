@@ -2,20 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const app = express();
-__path = process.cwd()
 const bodyParser = require("body-parser");
 const PORT = process.env.PORT || 8000;
-const {
-  qrRoute,
-  pairRoute
-} = require('./routes');
+const { qrRoute, pairRoute } = require('./routes');
 require('events').EventEmitter.defaultMaxListeners = 2000;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-
+// Routes
 app.use('/qr', qrRoute);
 app.use('/code', pairRoute);
 
@@ -27,7 +23,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
 app.get('/health', (req, res) => {
   res.json({
     status: 200,
@@ -37,14 +32,18 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`
 PGWIZ Session Server
 ====================
-Server Running on http://localhost:` + PORT + `
+Server Running on http://localhost:${PORT}
 QR Code: /qr
 Pair Code: /pair or /code?number=XXX
-`)
-})
+`);
+  });
+}
 
-module.exports = app
+// Export for Vercel
+module.exports = app;
