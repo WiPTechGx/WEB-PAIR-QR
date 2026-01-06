@@ -6,7 +6,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pino from 'pino';
-import pkg from '@whiskeysockets/baileys';
+import * as baileys from '@whiskeysockets/baileys';
+import { Storage } from 'megajs';
+
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -14,8 +16,7 @@ const {
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     Browsers
-} = pkg;
-import { Storage } from 'megajs';
+} = baileys;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,7 +84,19 @@ router.get('/', async (req, res) => {
     }
 
     async function PGWIZ_PAIR_CODE() {
-        const { version } = await fetchLatestBaileysVersion();
+        // Use hardcoded version if fetchLatestBaileysVersion fails
+        let version;
+        try {
+            if (typeof fetchLatestBaileysVersion === 'function') {
+                const result = await fetchLatestBaileysVersion();
+                version = result.version;
+            } else {
+                version = [2, 3000, 1015901307];
+            }
+        } catch (e) {
+            version = [2, 3000, 1015901307];
+        }
+
         const userSessionPath = path.join(sessionDir, id);
         if (!fs.existsSync(userSessionPath)) fs.mkdirSync(userSessionPath, { recursive: true });
 
@@ -155,6 +168,7 @@ router.get('/', async (req, res) => {
             });
 
         } catch (err) {
+            console.error("Socket error:", err);
             if (!responseSent && !res.headersSent) {
                 res.status(500).json({ code: "Service Unavailable" });
             }
