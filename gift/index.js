@@ -1,16 +1,16 @@
-const fs = require('fs');
+// gift/index.js - ES Module
+import fs from 'fs';
 
-function pgwizId(num = 4) {
+export function pgwizId(num = 4) {
   let result = "";
-  let characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  var characters9 = characters.length;
-  for (var i = 0; i < num; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters9));
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  for (let i = 0; i < num; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
 }
 
-function generateRandomCode() {
+export function generateRandomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
   for (let i = 0; i < 8; i++) {
@@ -19,10 +19,8 @@ function generateRandomCode() {
   return result;
 }
 
-async function removeFile(FilePath) {
-  if (!fs.existsSync(FilePath)) return false;
-  await fs.promises.rm(FilePath, { recursive: true, force: true });
-  return true;
+export async function removeFile(filePath) {
+  if (fs.existsSync(filePath)) {
+    await fs.promises.rm(filePath, { recursive: true, force: true });
+  }
 }
-
-module.exports = { pgwizId, removeFile, generateRandomCode };

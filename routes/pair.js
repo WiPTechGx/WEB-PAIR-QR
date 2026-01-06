@@ -1,26 +1,27 @@
-// routes/pair.js
-require('dotenv').config();
+// routes/pair.js - ES Module
+import 'dotenv/config';
+import { pgwizId, removeFile, generateRandomCode } from '../gift/index.js';
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import pino from 'pino';
+import pkg from '@whiskeysockets/baileys';
 const {
-    pgwizId,
-    removeFile,
-    generateRandomCode
-} = require('../gift');
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-let router = express.Router();
-const pino = require("pino");
-const {
-    default: pgwizConnect,
+    default: makeWASocket,
     useMultiFileAuthState,
     delay,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore,
     Browsers
-} = require("@whiskeysockets/baileys");
-const { Storage } = require('megajs');
+} = pkg;
+import { Storage } from 'megajs';
 
-// Use MEGA credentials from .env
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const router = express.Router();
+
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
 
@@ -28,65 +29,40 @@ const sessionDir = path.join(__dirname, "session");
 
 async function uploadToMega(localPath, remoteName) {
     return new Promise((resolve, reject) => {
-        try {
-            const storage = new Storage({
-                email: MEGA_EMAIL,
-                password: MEGA_PASSWORD,
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.135 Safari/537.36 Edge/12.246'
-            }, (error) => {
-                if (error) {
-                    return reject(error);
-                }
+        const storage = new Storage({
+            email: MEGA_EMAIL,
+            password: MEGA_PASSWORD,
+            userAgent: 'Mozilla/5.0'
+        }, (error) => {
+            if (error) return reject(error);
 
-                try {
-                    const uploadStream = storage.upload({
-                        name: remoteName,
-                        allowUploadBuffering: true
-                    });
-
-                    fs.createReadStream(localPath).pipe(uploadStream);
-
-                    storage.on('add', (file) => {
-                        file.link((err, link) => {
-                            if (err) {
-                                return reject(err);
-                            }
-
-                            try {
-                                let fileInfo = '';
-                                if (link.includes('/file/')) {
-                                    fileInfo = link.split('/file/')[1];
-                                } else if (link.includes('/#!')) {
-                                    fileInfo = link.split('/#!')[1].replace('!', '#');
-                                } else {
-                                    fileInfo = link;
-                                }
-
-                                const formattedLink = `PGWIZ~${fileInfo}`;
-                                storage.close();
-
-                                resolve({
-                                    link: formattedLink,
-                                    fullLink: link,
-                                    file
-                                });
-                            } catch (linkErr) {
-                                reject(linkErr);
-                            }
-                        });
-                    });
-
-                    storage.on('error', (err) => {
-                        reject(err);
-                    });
-
-                } catch (uploadErr) {
-                    reject(uploadErr);
-                }
+            const uploadStream = storage.upload({
+                name: remoteName,
+                allowUploadBuffering: true
             });
-        } catch (err) {
-            reject(err);
-        }
+
+            fs.createReadStream(localPath).pipe(uploadStream);
+
+            storage.on('add', (file) => {
+                file.link((err, link) => {
+                    if (err) return reject(err);
+
+                    let fileInfo = '';
+                    if (link.includes('/file/')) {
+                        fileInfo = link.split('/file/')[1];
+                    } else if (link.includes('/#!')) {
+                        fileInfo = link.split('/#!')[1].replace('!', '#');
+                    } else {
+                        fileInfo = link;
+                    }
+
+                    storage.close();
+                    resolve({ link: `PGWIZ~${fileInfo}`, fullLink: link });
+                });
+            });
+
+            storage.on('error', reject);
+        });
     });
 }
 
@@ -101,39 +77,30 @@ router.get('/', async (req, res) => {
         if (!sessionCleanedUp) {
             try {
                 await removeFile(path.join(sessionDir, id));
-            } catch (cleanupError) {
-                console.error("Cleanup error:", cleanupError);
-            }
+            } catch (e) { }
             sessionCleanedUp = true;
         }
     }
 
     async function PGWIZ_PAIR_CODE() {
         const { version } = await fetchLatestBaileysVersion();
-        console.log("Baileys version:", version);
-
         const userSessionPath = path.join(sessionDir, id);
         if (!fs.existsSync(userSessionPath)) fs.mkdirSync(userSessionPath, { recursive: true });
 
         const { state, saveCreds } = await useMultiFileAuthState(userSessionPath);
 
         try {
-            let sock = pgwizConnect({
+            let sock = makeWASocket({
                 version,
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                logger: pino({ level: "fatal" }),
                 browser: Browsers.macOS("Safari"),
                 syncFullHistory: false,
-                generateHighQualityLinkPreview: true,
-                shouldIgnoreJid: jid => !!jid?.endsWith('@g.us'),
-                getMessage: async () => undefined,
-                markOnlineOnConnect: true,
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000
+                connectTimeoutMs: 60000
             });
 
             if (!sock.authState.creds.registered) {
@@ -151,132 +118,51 @@ router.get('/', async (req, res) => {
             sock.ev.on('creds.update', saveCreds);
 
             sock.ev.on("connection.update", async (s) => {
-                try {
-                    const { connection, lastDisconnect } = s;
+                const { connection, lastDisconnect } = s;
 
-                    if (connection === "open") {
-                        await delay(5000);
+                if (connection === "open") {
+                    await delay(5000);
+                    const credsPath = path.join(userSessionPath, "creds.json");
 
-                        let sessionData = null;
-                        let attempts = 0;
-                        const maxAttempts = 15;
+                    if (fs.existsSync(credsPath)) {
+                        const data = fs.readFileSync(credsPath);
+                        if (data.length > 100) {
+                            const tempPath = path.join(__dirname, `pgwiz_${id}.json`);
+                            fs.writeFileSync(tempPath, data);
 
-                        while (attempts < maxAttempts && !sessionData) {
                             try {
-                                const credsPath = path.join(userSessionPath, "creds.json");
-                                if (fs.existsSync(credsPath)) {
-                                    const data = fs.readFileSync(credsPath);
-                                    if (data && data.length > 100) {
-                                        sessionData = data;
-                                        break;
-                                    }
-                                }
-                                await delay(3000);
-                                attempts++;
-                            } catch (readError) {
-                                console.error("Read error:", readError);
-                                await delay(2000);
-                                attempts++;
+                                const result = await uploadToMega(tempPath, `pgwiz_${id}.json`);
+                                fs.unlinkSync(tempPath);
+
+                                const msg = `╭━━━━━━━━━━━━━━━╮\n┃ *PGWIZ SESSION* ┃\n╰━━━━━━━━━━━━━━━╯\n\n✅ Session uploaded!\n\n📁 *Session ID:*\n\`\`\`${result.link}\`\`\`\n\n🔗 https://pgwiz.cloud\n\n> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*`;
+                                await sock.sendMessage(sock.user.id, { text: msg });
+                                await delay(1000);
+                                await sock.sendMessage(sock.user.id, { text: result.link });
+                            } catch (e) {
+                                console.error("Upload error:", e);
                             }
                         }
-
-                        if (!sessionData) {
-                            console.error("No session data found, cleaning up.");
-                            await cleanUpSession();
-                            return;
-                        }
-
-                        const tempFilename = `pgwiz_session_${id}.json`;
-                        const tempPath = path.join(__dirname, tempFilename);
-                        fs.writeFileSync(tempPath, sessionData);
-
-                        let uploaded = false;
-                        let uploadAttempts = 0;
-                        const maxUploadAttempts = 4;
-                        let megaLink = null;
-
-                        while (uploadAttempts < maxUploadAttempts && !uploaded) {
-                            try {
-                                uploadAttempts++;
-                                const result = await uploadToMega(tempPath, tempFilename);
-                                megaLink = result.link;
-                                uploaded = true;
-                            } catch (uploadErr) {
-                                console.error(`Mega upload attempt ${uploadAttempts} failed:`, uploadErr);
-                                await delay(3000);
-                            }
-                        }
-
-                        try { fs.unlinkSync(tempPath); } catch (e) { }
-
-                        if (!uploaded || !megaLink) {
-                            console.error("Failed to upload to Mega, cleaning up.");
-                            await cleanUpSession();
-                            return;
-                        }
-
-                        try {
-                            const messageText = `
-╭━━━━━━━━━━━━━━━━━╮
-┃ *PGWIZ SESSION* ┃
-╰━━━━━━━━━━━━━━━━━╯
-
-✅ Session successfully uploaded!
-
-📁 *Session ID:*
-\`\`\`${megaLink}\`\`\`
-
-🔗 *Website:*
-https://pgwiz.cloud
-
-> *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*
-`.trim();
-
-                            await sock.sendMessage(sock.user.id, { text: messageText });
-                            console.log("✅ First message sent successfully!");
-
-                            await delay(1000);
-                            await sock.sendMessage(sock.user.id, { text: megaLink });
-                            console.log("✅ Session ID resent successfully!");
-                        } catch (sendErr) {
-                            console.error("Failed to send message:", sendErr);
-                        }
-
-                        await delay(2000);
-                        sessionSent = true;
-                        try { await sock.ws.close(); } catch (e) { }
-                        await cleanUpSession();
-                        return;
-
-                    } else if (connection === "close" && !sessionSent && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode != 401) {
-                        console.log("Connection closed unexpectedly, attempting reconnect in 5s...");
-                        await delay(5000);
-                        PGWIZ_PAIR_CODE();
                     }
-                } catch (evtErr) {
-                    console.error("connection.update handler error:", evtErr);
+
+                    await delay(2000);
+                    sessionSent = true;
+                    try { await sock.ws.close(); } catch (e) { }
+                    await cleanUpSession();
+                } else if (connection === "close" && !sessionSent && lastDisconnect?.error?.output?.statusCode != 401) {
+                    await delay(5000);
+                    PGWIZ_PAIR_CODE();
                 }
             });
 
         } catch (err) {
-            console.error("Main error:", err);
             if (!responseSent && !res.headersSent) {
-                res.status(500).json({ code: "Service is Currently Unavailable" });
-                responseSent = true;
+                res.status(500).json({ code: "Service Unavailable" });
             }
             await cleanUpSession();
         }
     }
 
-    try {
-        await PGWIZ_PAIR_CODE();
-    } catch (finalError) {
-        console.error("Final error:", finalError);
-        await cleanUpSession();
-        if (!responseSent && !res.headersSent) {
-            res.status(500).json({ code: "Service Error" });
-        }
-    }
+    await PGWIZ_PAIR_CODE();
 });
 
-module.exports = router;
+export default router;
