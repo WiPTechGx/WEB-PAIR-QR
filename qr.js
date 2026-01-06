@@ -3,19 +3,16 @@ import fs from 'fs-extra';
 import pino from 'pino';
 import QRCode from 'qrcode';
 import { exec } from 'child_process';
-import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { delay } from '@whiskeysockets/baileys';
 import { upload } from './mega.js';
-
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const router = express.Router();
 
-// Permanent sessions folder
 const SESSIONS_ROOT = path.join(__dirname, 'sessions');
 
 const MESSAGE = `
@@ -36,18 +33,17 @@ async function removeFile(filePath) {
     }
 }
 
+// Global map to keep sockets alive
+const activeSessions = new Map();
+
 router.get('/', async (req, res) => {
     let customId = req.query.sessionId || '';
-    // Sanitize: alphanumeric only
     customId = customId.replace(/[^a-zA-Z0-9]/g, '');
-
     const randomID = Math.random().toString(36).substring(2, 6);
     const sessionId = customId ? `pgwiz-${customId}` : `pgwiz-${randomID}`;
 
-    // Use permanent sessions folder
     const dirs = path.join(SESSIONS_ROOT, sessionId);
 
-    // Ensure sessions root exists
     if (!fs.existsSync(SESSIONS_ROOT)) {
         await fs.mkdir(SESSIONS_ROOT, { recursive: true });
     }
@@ -60,6 +56,7 @@ router.get('/', async (req, res) => {
             const { version } = await fetchLatestBaileysVersion();
             let qrGenerated = false;
             let responseSent = false;
+            let credsSent = false; // Track if we've already sent credentials
 
             const socketConfig = {
                 version,
@@ -67,7 +64,7 @@ router.get('/', async (req, res) => {
                 browser: ['Ubuntu', 'Chrome', '20.0.04'],
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'fatal' })),
                 },
                 markOnlineOnConnect: false,
                 generateHighQualityLinkPreview: false,
@@ -83,7 +80,6 @@ router.get('/', async (req, res) => {
             const handleQRCode = async (qr) => {
                 if (qrGenerated || responseSent) return;
                 qrGenerated = true;
-
                 try {
                     const qrDataURL = await QRCode.toDataURL(qr, { errorCorrectionLevel: 'M' });
                     if (!responseSent) {
@@ -106,122 +102,132 @@ router.get('/', async (req, res) => {
             };
 
             let reconnectAttempts = 0;
-            let sessionComplete = false; // Flag to stop reconnection after success
-
-            // Simple cleanup: Just remove files, don't force kill connection immediately if possible
-            // But since this is a session generator, we usually DO want to close it after sending.
-            // The user said "remain active", but that usually means "don't log out".
-            // Deleting the folder will kill persistence on THIS server, but the session itself on the phone remains.
-            const cleanup = async () => {
-                try {
-                    sock.end(undefined); // Close connection cleanly to allow file deletion/prevent errors
-                } catch { }
-                await delay(3000); // 3s wait is enough if socket is closed
-                await removeFile(dirs);
-            };
 
             const handleConnectionUpdate = async (update) => {
                 const { connection, lastDisconnect, qr } = update;
-                console.log(`Connection update: ${connection}, lastDisconnect: ${lastDisconnect?.error}`); // Debug log
+                console.log(`Connection update: ${connection}, lastDisconnect: ${lastDisconnect?.error}`);
 
                 if (qr && !qrGenerated) await handleQRCode(qr);
 
                 if (connection === 'open') {
-                    reconnectAttempts = 0; // Reset attempts on successful connection
-                    console.log(`Connection open! Checking for creds in: ${dirs}`); // Debug log
-                    // ... (rest of open logic matches existing)
-                    try {
-                        const credsFile = path.join(dirs, 'creds.json');
-                        const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
-                        // Wait a short moment to ensure file flush
-                        await delay(500);
+                    reconnectAttempts = 0;
+                    console.log(`Connection open! Checking for creds in: ${dirs}`);
 
-                        if (fs.existsSync(credsFile)) {
-                            console.log(`Creds file found at ${credsFile}`); // Debug log
+                    if (!credsSent) { // Only send once
+                        credsSent = true;
+                        try {
+                            const credsFile = path.join(dirs, 'creds.json');
+                            const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
 
-                            // Rename/Copy for sending with unique name
-                            fs.copySync(credsFile, uniqueCredsFile);
+                            await delay(500);
 
-                            const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
-                                ? jidNormalizedUser(sock.authState.creds.me.id)
-                                : null;
+                            if (fs.existsSync(credsFile)) {
+                                console.log(`Creds file found at ${credsFile}`);
+                                fs.copySync(credsFile, uniqueCredsFile);
 
-                            console.log(`User JID: ${userJid}`); // Debug log
+                                const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
+                                    ? jidNormalizedUser(sock.authState.creds.me.id)
+                                    : null;
 
-                            if (userJid) {
-                                console.log("Sending session ID text...");
-                                await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
+                                console.log(`User JID: ${userJid}`);
 
-                                console.log("Sending session file directly...");
-                                await sock.sendMessage(userJid, {
-                                    document: { url: uniqueCredsFile },
-                                    mimetype: 'application/json',
-                                    fileName: 'creds.json',
-                                    caption: MESSAGE
-                                });
-                                console.log("Session file sent successfully.");
+                                if (userJid) {
+                                    console.log("Sending session ID text...");
+                                    await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
-                                // Try MEGA Upload afterwards (non-blocking for the user, but we await to log)
-                                console.log("Attempting MEGA upload...");
-                                const megaUrl = await upload(fs.createReadStream(credsFile), `${sessionId}.json`);
+                                    console.log("Sending session file directly...");
+                                    await sock.sendMessage(userJid, {
+                                        document: { url: uniqueCredsFile },
+                                        mimetype: 'application/json',
+                                        fileName: 'creds.json',
+                                        caption: MESSAGE
+                                    });
+                                    console.log("Session file sent successfully.");
 
-                                if (megaUrl) {
-                                    console.log('📄 Session uploaded to MEGA:', megaUrl);
-                                    // Write meta.json with MEGA URL for later retrieval
-                                    const metaFile = path.join(dirs, 'meta.json');
-                                    await fs.writeJson(metaFile, { sessionId, megaUrl, createdAt: new Date().toISOString() });
-                                    console.log('📝 meta.json written to:', metaFile);
-                                    await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
+                                    // Try MEGA Upload
+                                    console.log("Attempting MEGA upload...");
+                                    const megaUrl = await upload(fs.createReadStream(credsFile), `${sessionId}.json`);
+                                    if (megaUrl) {
+                                        console.log('📄 Session uploaded to MEGA:', megaUrl);
+                                        const metaFile = path.join(dirs, 'meta.json');
+                                        await fs.writeJson(metaFile, { sessionId, megaUrl, createdAt: new Date().toISOString() });
+                                        console.log('📝 meta.json written to:', metaFile);
+                                        await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
+                                    } else {
+                                        console.log('MEGA upload failed or credentials missing.');
+                                    }
+
+                                    console.log("✅ Session generation complete! Keeping connection alive.");
+                                    console.log("📁 Session saved at:", dirs);
+                                    console.log("🔗 Session ID:", sessionId);
+
+                                    // ✅ CRITICAL: Store socket in global map to keep it alive
+                                    activeSessions.set(sessionId, { sock, createdAt: Date.now() });
                                 } else {
-                                    console.log('MEGA upload failed or credentials missing (check logs).');
+                                    console.error("User JID not found in authState. Cannot send message.");
                                 }
-                            } else {
-                                console.error("User JID not found in authState. Cannot send message.");
                             }
+                        } catch (err) {
+                            console.error('Error sending session:', err);
                         }
-
-                        // ✅ SESSION COMPLETE - keep socket alive for persistent connection
-                        sessionComplete = true;
-                        console.log("✅ Session generation complete! Keeping connection alive.");
-                        console.log("📁 Session saved at:", dirs);
-                        console.log("🔗 Session ID:", sessionId);
-
-                        // DON'T close socket - keep session alive!
-                        // await delay(3000);
-                        // try { sock.end(undefined); } catch { }
-
-                    } catch (err) {
-                        console.error('Error sending session:', err);
-                        // Don't cleanup on error - session might still be valid
                     }
                 }
 
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
                     const isLoggedOut = statusCode === 401;
-
-                    // Check if we have valid credentials
                     const hasValidCreds = sock.authState?.creds?.registered === true;
 
-                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}, Session complete: ${sessionComplete}`);
-
-                    // If session was already generated successfully, DON'T reconnect
-                    if (sessionComplete) {
-                        console.log('Session generation complete. Not reconnecting. Files preserved for /load endpoint.');
-                        return;
-                    }
+                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}`);
 
                     if (isLoggedOut) {
                         console.log('Session was logged out. Files preserved for debugging.');
-                    } else {
-                        // Only reconnect if still generating (not complete yet)
+                        activeSessions.delete(sessionId);
+                    } else if (credsSent && hasValidCreds) {
+                        // Session was generated successfully, just reconnect silently
                         reconnectAttempts++;
                         console.log(`Reconnect attempt ${reconnectAttempts}...`);
 
-                        if (reconnectAttempts <= 5) { // Reduced - if it fails 5 times, something's wrong
+                        if (reconnectAttempts <= 10) {
                             setTimeout(async () => {
                                 try {
-                                    // CRITICAL: Reload auth state fresh from disk
+                                    const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
+                                    const { version: freshVersion } = await fetchLatestBaileysVersion();
+
+                                    const newSock = makeWASocket({
+                                        version: freshVersion,
+                                        logger: pino({ level: 'silent' }),
+                                        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+                                        auth: {
+                                            creds: freshState.creds,
+                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
+                                        },
+                                        markOnlineOnConnect: false,
+                                        connectTimeoutMs: 120000,
+                                        keepAliveIntervalMs: 30000,
+                                    });
+
+                                    newSock.ev.on('connection.update', handleConnectionUpdate);
+                                    newSock.ev.on('creds.update', freshSaveCreds);
+
+                                    sock = newSock;
+                                    activeSessions.set(sessionId, { sock: newSock, createdAt: Date.now() });
+                                    console.log('Reconnected with fresh auth state.');
+                                } catch (err) {
+                                    console.error('Reconnect failed:', err);
+                                }
+                            }, 3000);
+                        } else {
+                            console.error("Max reconnect attempts reached. Session preserved.");
+                        }
+                    } else if (!credsSent) {
+                        // Still generating, reconnect
+                        reconnectAttempts++;
+                        console.log(`Reconnect attempt ${reconnectAttempts} (still generating)...`);
+
+                        if (reconnectAttempts <= 5) {
+                            setTimeout(async () => {
+                                try {
                                     const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
                                     const { version: freshVersion } = await fetchLatestBaileysVersion();
 
@@ -231,7 +237,7 @@ router.get('/', async (req, res) => {
                                         browser: ['Ubuntu', 'Chrome', '20.0.04'],
                                         auth: {
                                             creds: freshState.creds,
-                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: "fatal" })),
+                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
                                         },
                                         markOnlineOnConnect: false,
                                         connectTimeoutMs: 120000,
@@ -245,31 +251,58 @@ router.get('/', async (req, res) => {
                                     console.error('Reconnect failed:', err);
                                 }
                             }, 3000);
-                        } else {
-                            console.error("Max reconnect attempts reached. Session preserved for manual recovery.");
                         }
                     }
                 }
             };
 
             sock.ev.on('connection.update', handleConnectionUpdate);
-
             sock.ev.on('creds.update', saveCreds);
 
-            const timeoutId = setTimeout(() => {
+            setTimeout(() => {
                 if (!responseSent) res.status(408).send({ code: 'QR generation timeout' });
-                cleanup();
-            }, 60000); // Increased interaction timeout to 60s
+            }, 60000);
 
         } catch (err) {
             console.error('Error initializing session:', err);
             exec('pm2 restart qasim');
             if (!res.headersSent) res.status(503).send({ code: 'Service Unavailable' });
-            await removeFile(dirs);
         }
     }
 
     await initiateSession();
+});
+
+// Disconnect endpoint
+router.post('/disconnect/:sessionId', async (req, res) => {
+    const { sessionId } = req.params;
+    const session = activeSessions.get(sessionId);
+
+    if (session) {
+        try {
+            await session.sock.end(undefined);
+            activeSessions.delete(sessionId);
+            res.json({ message: 'Session disconnected' });
+        } catch (err) {
+            console.error('Error disconnecting:', err);
+            res.status(500).json({ error: 'Failed to disconnect' });
+        }
+    } else {
+        res.status(404).json({ error: 'Session not found' });
+    }
+});
+
+// Get active sessions
+router.get('/active', (req, res) => {
+    const sessions = [];
+    for (const [sessionId, data] of activeSessions) {
+        sessions.push({
+            sessionId,
+            createdAt: data.createdAt,
+            connected: data.sock?.user ? true : false
+        });
+    }
+    res.json({ activeSessions: sessions });
 });
 
 process.on('uncaughtException', (err) => {
@@ -280,6 +313,7 @@ process.on('uncaughtException', (err) => {
         "Value not found", "Stream Errored", "Stream Errored (restart required)",
         "statusCode: 515", "statusCode: 503"
     ];
+
     if (!ignore.some(x => e.includes(x))) {
         console.log('Caught exception:', err);
         exec('pm2 restart qasim');
