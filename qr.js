@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
             const { version } = await fetchLatestBaileysVersion();
             let qrGenerated = false;
             let responseSent = false;
-            let credsSent = false; // Track if we've already sent credentials
+            let credsSent = false;
 
             const socketConfig = {
                 version,
@@ -105,15 +105,15 @@ router.get('/', async (req, res) => {
 
             const handleConnectionUpdate = async (update) => {
                 const { connection, lastDisconnect, qr } = update;
-                console.log(`Connection update: ${connection}, lastDisconnect: ${lastDisconnect?.error}`);
+                console.log(`[${sessionId}] Connection: ${connection}, Error: ${lastDisconnect?.error?.message || 'none'}`);
 
                 if (qr && !qrGenerated) await handleQRCode(qr);
 
                 if (connection === 'open') {
                     reconnectAttempts = 0;
-                    console.log(`Connection open! Checking for creds in: ${dirs}`);
+                    console.log(`[${sessionId}] Connection open!`);
 
-                    if (!credsSent) { // Only send once
+                    if (!credsSent) {
                         credsSent = true;
                         try {
                             const credsFile = path.join(dirs, 'creds.json');
@@ -122,53 +122,57 @@ router.get('/', async (req, res) => {
                             await delay(500);
 
                             if (fs.existsSync(credsFile)) {
-                                console.log(`Creds file found at ${credsFile}`);
+                                console.log(`[${sessionId}] Creds file found`);
                                 fs.copySync(credsFile, uniqueCredsFile);
 
                                 const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
                                     ? jidNormalizedUser(sock.authState.creds.me.id)
                                     : null;
 
-                                console.log(`User JID: ${userJid}`);
-
                                 if (userJid) {
-                                    console.log("Sending session ID text...");
+                                    // Send session ID (not MEGA link)
+                                    console.log("[${sessionId}] Sending session ID...");
                                     await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
-                                    console.log("Sending session file directly...");
+                                    // Wait to prevent conflict
+                                    await delay(2000);
+
+                                    // Send creds file
+                                    console.log(`[${sessionId}] Sending creds file...`);
                                     await sock.sendMessage(userJid, {
                                         document: { url: uniqueCredsFile },
                                         mimetype: 'application/json',
                                         fileName: 'creds.json',
                                         caption: MESSAGE
                                     });
-                                    console.log("Session file sent successfully.");
+                                    console.log(`[${sessionId}] ✅ Session file sent!`);
 
-                                    // Try MEGA Upload
-                                    console.log("Attempting MEGA upload...");
-                                    const megaUrl = await upload(fs.createReadStream(credsFile), `${sessionId}.json`);
-                                    if (megaUrl) {
-                                        console.log('📄 Session uploaded to MEGA:', megaUrl);
-                                        const metaFile = path.join(dirs, 'meta.json');
-                                        await fs.writeJson(metaFile, { sessionId, megaUrl, createdAt: new Date().toISOString() });
-                                        console.log('📝 meta.json written to:', metaFile);
-                                        await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
-                                    } else {
-                                        console.log('MEGA upload failed or credentials missing.');
-                                    }
-
-                                    console.log("✅ Session generation complete! Keeping connection alive.");
-                                    console.log("📁 Session saved at:", dirs);
-                                    console.log("🔗 Session ID:", sessionId);
-
-                                    // ✅ CRITICAL: Store socket in global map to keep it alive
+                                    // Store socket to keep alive
                                     activeSessions.set(sessionId, { sock, createdAt: Date.now() });
+                                    console.log(`[${sessionId}] ✅ Session active and stored!`);
+
+                                    // MEGA upload in background (don't wait, don't send link)
+                                    (async () => {
+                                        try {
+                                            await delay(3000); // Wait for session to stabilize
+                                            console.log(`[${sessionId}] Uploading to MEGA...`);
+                                            const megaUrl = await upload(fs.createReadStream(credsFile), `${sessionId}.json`);
+                                            if (megaUrl) {
+                                                console.log(`[${sessionId}] 📄 MEGA: ${megaUrl}`);
+                                                const metaFile = path.join(dirs, 'meta.json');
+                                                await fs.writeJson(metaFile, { sessionId, megaUrl, createdAt: new Date().toISOString() });
+                                            }
+                                        } catch (e) {
+                                            console.error(`[${sessionId}] MEGA upload error:`, e.message);
+                                        }
+                                    })();
+
                                 } else {
-                                    console.error("User JID not found in authState. Cannot send message.");
+                                    console.error(`[${sessionId}] User JID not found`);
                                 }
                             }
                         } catch (err) {
-                            console.error('Error sending session:', err);
+                            console.error(`[${sessionId}] Error sending session:`, err.message);
                         }
                     }
                 }
@@ -178,15 +182,16 @@ router.get('/', async (req, res) => {
                     const isLoggedOut = statusCode === 401;
                     const hasValidCreds = sock.authState?.creds?.registered === true;
 
-                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}`);
+                    console.log(`[${sessionId}] Closed. Status: ${statusCode}, LoggedOut: ${isLoggedOut}, CredsSent: ${credsSent}`);
 
-                    if (isLoggedOut) {
-                        console.log('Session was logged out. Files preserved for debugging.');
+                    // Only treat as logout if 401 AND creds were never sent
+                    if (isLoggedOut && !credsSent) {
+                        console.log(`[${sessionId}] Logged out before creds sent. Needs re-pairing.`);
                         activeSessions.delete(sessionId);
                     } else if (credsSent && hasValidCreds) {
-                        // Session was generated successfully, just reconnect silently
+                        // Creds sent successfully - reconnect
                         reconnectAttempts++;
-                        console.log(`Reconnect attempt ${reconnectAttempts}...`);
+                        console.log(`[${sessionId}] Reconnecting (attempt ${reconnectAttempts})...`);
 
                         if (reconnectAttempts <= 10) {
                             setTimeout(async () => {
@@ -212,25 +217,22 @@ router.get('/', async (req, res) => {
 
                                     sock = newSock;
                                     activeSessions.set(sessionId, { sock: newSock, createdAt: Date.now() });
-                                    console.log('Reconnected with fresh auth state.');
+                                    console.log(`[${sessionId}] ✅ Reconnected!`);
                                 } catch (err) {
-                                    console.error('Reconnect failed:', err);
+                                    console.error(`[${sessionId}] Reconnect failed:`, err.message);
                                 }
                             }, 3000);
                         } else {
-                            console.error("Max reconnect attempts reached. Session preserved.");
+                            console.log(`[${sessionId}] Max attempts. Load via /load endpoint.`);
                         }
                     } else if (!credsSent) {
-                        // Still generating, reconnect
+                        // Still generating
                         reconnectAttempts++;
-                        console.log(`Reconnect attempt ${reconnectAttempts} (still generating)...`);
-
                         if (reconnectAttempts <= 5) {
                             setTimeout(async () => {
                                 try {
                                     const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
                                     const { version: freshVersion } = await fetchLatestBaileysVersion();
-
                                     sock = makeWASocket({
                                         version: freshVersion,
                                         logger: pino({ level: 'silent' }),
@@ -243,12 +245,10 @@ router.get('/', async (req, res) => {
                                         connectTimeoutMs: 120000,
                                         keepAliveIntervalMs: 30000,
                                     });
-
                                     sock.ev.on('connection.update', handleConnectionUpdate);
                                     sock.ev.on('creds.update', freshSaveCreds);
-                                    console.log('Reconnected with fresh auth state.');
                                 } catch (err) {
-                                    console.error('Reconnect failed:', err);
+                                    console.error(`[${sessionId}] Reconnect failed:`, err.message);
                                 }
                             }, 3000);
                         }
@@ -284,7 +284,6 @@ router.post('/disconnect/:sessionId', async (req, res) => {
             activeSessions.delete(sessionId);
             res.json({ message: 'Session disconnected' });
         } catch (err) {
-            console.error('Error disconnecting:', err);
             res.status(500).json({ error: 'Failed to disconnect' });
         }
     } else {
@@ -296,24 +295,15 @@ router.post('/disconnect/:sessionId', async (req, res) => {
 router.get('/active', (req, res) => {
     const sessions = [];
     for (const [sessionId, data] of activeSessions) {
-        sessions.push({
-            sessionId,
-            createdAt: data.createdAt,
-            connected: data.sock?.user ? true : false
-        });
+        sessions.push({ sessionId, createdAt: data.createdAt });
     }
     res.json({ activeSessions: sessions });
 });
 
 process.on('uncaughtException', (err) => {
     const e = String(err);
-    const ignore = [
-        "conflict", "not-authorized", "Socket connection timeout",
-        "rate-overlimit", "Connection Closed", "Timed Out",
-        "Value not found", "Stream Errored", "Stream Errored (restart required)",
-        "statusCode: 515", "statusCode: 503"
-    ];
-
+    const ignore = ["conflict", "not-authorized", "Socket connection timeout", "rate-overlimit",
+        "Connection Closed", "Timed Out", "Value not found", "Stream Errored", "statusCode: 515", "statusCode: 503"];
     if (!ignore.some(x => e.includes(x))) {
         console.log('Caught exception:', err);
         exec('pm2 restart qasim');
