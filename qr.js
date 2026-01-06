@@ -114,15 +114,21 @@ router.get('/', async (req, res) => {
 
             const handleConnectionUpdate = async (update) => {
                 const { connection, lastDisconnect, qr } = update;
+                console.log(`Connection update: ${connection}, lastDisconnect: ${lastDisconnect?.error}`); // Debug log
 
                 if (qr && !qrGenerated) await handleQRCode(qr);
 
                 if (connection === 'open') {
+                    console.log(`Connection open! Checking for creds in: ${dirs}`); // Debug log
                     try {
                         const credsFile = path.join(dirs, 'creds.json');
                         const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
+                        // Wait a short moment to ensure file flush
+                        await delay(500);
 
                         if (fs.existsSync(credsFile)) {
+                            console.log(`Creds file found at ${credsFile}`); // Debug log
+
                             // Rename/Copy for sending with unique name
                             fs.copySync(credsFile, uniqueCredsFile);
 
@@ -130,16 +136,33 @@ router.get('/', async (req, res) => {
                                 ? jidNormalizedUser(sock.authState.creds.me.id)
                                 : null;
 
+                            console.log(`User JID: ${userJid}`); // Debug log
+
                             if (userJid) {
+                                console.log("Sending session ID text...");
                                 await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
-                                // Send the file as 'creds.json' as requested, but from the Unique ID file source
+                                console.log("Sending session file directly...");
                                 await sock.sendMessage(userJid, {
                                     document: { url: uniqueCredsFile },
                                     mimetype: 'application/json',
                                     fileName: 'creds.json',
                                     caption: MESSAGE
                                 });
+                                console.log("Session file sent successfully.");
+
+                                // Try MEGA Upload afterwards (non-blocking for the user, but we await to log)
+                                console.log("Attempting MEGA upload...");
+                                const megaUrl = await upload(fs.createReadStream(credsFile), `${sessionId}.json`);
+
+                                if (megaUrl) {
+                                    console.log('📄 Session uploaded to MEGA:', megaUrl);
+                                    await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
+                                } else {
+                                    console.log('MEGA upload failed or credentials missing (check logs).');
+                                }
+                            } else {
+                                console.error("User JID not found in authState. Cannot send message.");
                             }
                         }
 

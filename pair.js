@@ -99,6 +99,19 @@ router.get('/', async (req, res) => {
                                 caption: MESSAGE
                             });
 
+                            // Try MEGA Upload afterwards
+                            try {
+                                const id = randomMegaId();
+                                const megaLink = await megaUpload(fs.createReadStream(credsFile), `${id}.json`);
+                                if (megaLink) {
+                                    const sessionId = megaLink.replace('https://mega.nz/file/', '');
+                                    const m1 = await sock.sendMessage(userJid, { text: sessionId });
+                                    await sock.sendMessage(userJid, { text: MESSAGE, quoted: m1 });
+                                }
+                            } catch (e) {
+                                console.error("MEGA upload failed:", e);
+                            }
+
                             await delay(3000); // Wait for file to send
                             try { sock.end(undefined); } catch { }
                             await removeFile(dirs);
