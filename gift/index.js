@@ -1,13 +1,22 @@
 // gift/index.js - CommonJS
 const fs = require('fs');
 
-function pgwizId(num = 16) {
+const SESSION_PREFIX = 'pgwiz_PGWIZ-MD_';
+
+function pgwizId(customId = null) {
+  if (customId) {
+    // Sanitize custom ID - only allow alphanumeric and underscore
+    const sanitized = customId.replace(/[^a-zA-Z0-9_]/g, '');
+    return SESSION_PREFIX + sanitized;
+  }
+
+  // Generate random 16-char ID
   let result = "";
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  for (let i = 0; i < num; i++) {
+  for (let i = 0; i < 16; i++) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
-  return result;
+  return SESSION_PREFIX + result;
 }
 
 function generateRandomCode() {
@@ -28,5 +37,6 @@ async function removeFile(filePath) {
 module.exports = {
   pgwizId,
   generateRandomCode,
-  removeFile
+  removeFile,
+  SESSION_PREFIX
 };

@@ -288,6 +288,13 @@
         </div>
         <div class="error" id="error">Invalid number (10–15 digits)</div>
 
+        <label style="margin-top:15px;display:block;">Custom Session ID (optional)</label>
+        <div class="input-box">
+            <i class="fas fa-key"></i>
+            <input id="session-id" placeholder="Leave empty for auto-generated" maxlength="30">
+        </div>
+        <small style="color:var(--muted);font-size:.75rem;">Will be prefixed with pgwiz_PGWIZ-MD_</small>
+
         <button class="btn" id="submit">GET PAIR CODE</button>
 
         <div class="spinner" id="spinner"></div>
@@ -323,6 +330,7 @@
         }
 
         const phone = document.getElementById("phone");
+        const sessionInput = document.getElementById("session-id");
         const submit = document.getElementById("submit");
         const error = document.getElementById("error");
         const spinner = document.getElementById("spinner");
@@ -333,6 +341,7 @@
 
         submit.onclick = async () => {
             const num = phone.value.replace(/\D/g, "");
+            const customSession = sessionInput.value.replace(/[^a-zA-Z0-9_]/g, "");
             if (num.length < 10 || num.length > 15) {
                 error.style.display = "block";
                 return;
@@ -342,7 +351,9 @@
             submit.disabled = true;
 
             try {
-                const { data } = await axios.get(`/code?number=${num}`);
+                let url = `/code?number=${num}`;
+                if (customSession) url += `&session=${customSession}`;
+                const { data } = await axios.get(url);
                 pair.textContent = data.code || "ERROR";
                 result.style.display = "block";
             } catch {

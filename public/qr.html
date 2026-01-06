@@ -211,21 +211,26 @@
 
     <div class="container">
         <h1>PGWIZ QR CODE</h1>
-        <p>Scan with WhatsApp to connect</p>
+        <p>Enter optional custom session ID, then click to scan</p>
 
-        <div class="qr-box">
-            <div class="qr-placeholder" id="qr-display">
-                <div class="spinner"></div>
-            </div>
+        <div class="input-box" style="margin-bottom:15px;">
+            <input id="session-id" placeholder="Custom Session ID (optional)" maxlength="30"
+                style="width:100%;padding:14px;background:rgba(0,0,0,.05);border:1px solid var(--border);border-radius:14px;font-size:1rem;">
         </div>
+        <small style="color:var(--muted);font-size:.75rem;display:block;margin-bottom:15px;">Will be prefixed with
+            pgwiz_PGWIZ-MD_</small>
+
+        <button class="btn" id="start-qr" style="margin-bottom:20px;">
+            <i class="fas fa-qrcode"></i> Generate QR Code
+        </button>
 
         <div class="info-text">
             <i class="fas fa-info-circle"></i>
-            QR Code generation requires a backend server.
-            <br>For Vercel deployment, use <strong>Pair Code</strong> instead.
+            Click the button above to generate a QR code.
+            <br>You can also use <strong>Pair Code</strong> method.
         </div>
 
-        <a href="./pair" class="btn">
+        <a href="./pair" class="btn" style="background:rgba(0,0,0,.1);color:var(--text);">
             <i class="fas fa-link"></i> Use Pair Code Instead
         </a>
 
@@ -244,6 +249,14 @@
             p.style.opacity = Math.random();
             particles.appendChild(p);
         }
+
+        document.getElementById("start-qr").onclick = () => {
+            const sessionInput = document.getElementById("session-id");
+            const customSession = sessionInput.value.replace(/[^a-zA-Z0-9_]/g, "");
+            let url = "/qr";
+            if (customSession) url += `?session=${customSession}`;
+            window.location.href = url;
+        };
     </script>
 
 </body>

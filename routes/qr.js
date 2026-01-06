@@ -73,7 +73,8 @@ async function uploadToMega(localPath, remoteName) {
 }
 
 router.get('/', async (req, res) => {
-    const id = pgwizId();
+    const customSessionId = req.query.session || null;
+    const id = pgwizId(customSessionId);
     let responseSent = false;
     let sessionCleanedUp = false;
     let sessionSent = false;
