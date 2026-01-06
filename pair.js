@@ -122,23 +122,28 @@ router.get('/', async (req, res) => {
                             // await delay(3000); // Wait for file to send
                             // try { sock.end(undefined); } catch {}
                             // await removeFile(dirs);
-                            console.log("Session generated and sent. Keeping connection open as requested.");
+                            console.log("Session generated and sent. Connection will be maintained.");
                         } catch (err) {
                             console.error('Error sending session file:', err);
-                            await removeFile(dirs);
+                            // Don't delete session - might still be valid
                         }
                     }
                 }
 
                 if (connection === 'close') {
                     const code = lastDisconnect?.error?.output?.statusCode;
-                    if (code === 401) {
-                        // Session invalid
-                        await removeFile(dirs);
+                    const isLoggedOut = code === 401;
+                    const hasValidCreds = sock.authState?.creds?.registered === true;
+
+                    console.log(`Connection closed. Status: ${code}, Logged out: ${isLoggedOut}, Has valid creds: ${hasValidCreds}`);
+
+                    if (isLoggedOut) {
+                        console.log('Session was logged out by user. Session folder preserved.');
+                        // Don't delete creds
                     } else {
-                        // Persistent Reconnect
-                        console.log(`Connection closed (${code}). Reconnecting...`);
-                        await delay(2000);
+                        // Reconnect with fresh state
+                        console.log('Temporary disconnect. Reconnecting with fresh auth state...');
+                        await delay(3000);
                         runSession();
                     }
                 }

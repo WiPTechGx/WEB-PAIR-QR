@@ -180,40 +180,61 @@ router.get('/', async (req, res) => {
                             }
                         }
 
-                        // Delay cleanup significantly to ensure file transfer completes
-                        // User requested to keep session open ("leave the session on")
-                        // setTimeout(cleanup, 30000); 
-                        console.log("Session generated and sent. Keeping connection open as requested.");
+                        // Session generated - keep connection alive
+                        console.log("Session generated and sent. Connection will be maintained.");
 
                     } catch (err) {
                         console.error('Error sending session:', err);
-                        cleanup();
+                        // Don't cleanup on error - session might still be valid
                     }
                 }
 
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    if (statusCode === 401) {
-                        // Logged out
-                        cleanup();
+                    const isLoggedOut = statusCode === 401;
+
+                    // Check if we have valid credentials
+                    const hasValidCreds = sock.authState?.creds?.registered === true;
+
+                    console.log(`Connection closed. Status: ${statusCode}, Logged out: ${isLoggedOut}, Has valid creds: ${hasValidCreds}`);
+
+                    if (isLoggedOut) {
+                        console.log('Session was logged out by user. Session folder preserved for reference.');
+                        // Don't delete creds - user might want to check what happened
                     } else {
-                        // Reconnect on everything else (including undefined)
-                        console.log(`Connection closed (Status: ${statusCode}). Reconnecting...`);
+                        // Temporary disconnect - reconnect with fresh auth state
                         reconnectAttempts++;
-                        // Higher limits for persistent mode, or infinite?
-                        // Using a large number to effectively be persistent.
+                        console.log(`Reconnect attempt ${reconnectAttempts}...`);
+
                         if (reconnectAttempts <= 100) {
-                            setTimeout(() => {
+                            setTimeout(async () => {
                                 try {
-                                    sock = makeWASocket(socketConfig);
+                                    // CRITICAL: Reload auth state fresh from disk
+                                    const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
+                                    const { version: freshVersion } = await fetchLatestBaileysVersion();
+
+                                    sock = makeWASocket({
+                                        version: freshVersion,
+                                        logger: pino({ level: 'silent' }),
+                                        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+                                        auth: {
+                                            creds: freshState.creds,
+                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: "fatal" })),
+                                        },
+                                        markOnlineOnConnect: false,
+                                        connectTimeoutMs: 120000,
+                                        keepAliveIntervalMs: 30000,
+                                    });
+
                                     sock.ev.on('connection.update', handleConnectionUpdate);
-                                    sock.ev.on('creds.update', saveCreds);
-                                } catch (err) { console.error('Reconnect failed:', err); }
-                            }, 2000);
+                                    sock.ev.on('creds.update', freshSaveCreds);
+                                    console.log('Reconnected with fresh auth state.');
+                                } catch (err) {
+                                    console.error('Reconnect failed:', err);
+                                }
+                            }, 3000);
                         } else {
-                            console.error("Max reconnect attempts reached. Stopping.");
-                            if (!responseSent) res.status(503).send({ code: 'Connection failed after retries' });
-                            cleanup();
+                            console.error("Max reconnect attempts reached. Session preserved for manual recovery.");
                         }
                     }
                 }

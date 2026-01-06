@@ -77,28 +77,42 @@ router.get('/', async (req, res) => {
                     console.log(`[${sessionId}] Session logged out. Removing from active sockets.`);
                     activeSockets.delete(sessionId);
                 } else {
-                    // Reconnect
-                    console.log(`[${sessionId}] Connection closed (${statusCode}). Reconnecting...`);
+                    // Reconnect with fresh auth state
+                    console.log(`[${sessionId}] Connection closed (${statusCode}). Reconnecting with fresh state...`);
                     setTimeout(async () => {
                         try {
-                            const newState = await useMultiFileAuthState(sessionDir);
+                            // CRITICAL: Reload auth state fresh from disk
+                            const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(sessionDir);
+                            const { version: freshVersion } = await fetchLatestBaileysVersion();
+
                             const newSock = makeWASocket({
-                                version,
+                                version: freshVersion,
                                 auth: {
-                                    creds: newState.state.creds,
-                                    keys: makeCacheableSignalKeyStore(newState.state.keys, pino({ level: 'fatal' })),
+                                    creds: freshState.creds,
+                                    keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
                                 },
                                 logger: pino({ level: 'silent' }),
                                 browser: ['Ubuntu', 'Chrome', '20.0.04'],
                                 printQRInTerminal: false,
                                 markOnlineOnConnect: false,
+                                connectTimeoutMs: 120000,
+                                keepAliveIntervalMs: 30000,
                             });
-                            newSock.ev.on('creds.update', newState.saveCreds);
+
+                            newSock.ev.on('creds.update', freshSaveCreds);
+                            newSock.ev.on('connection.update', async (upd) => {
+                                // Re-attach same handler
+                                const { connection: conn } = upd;
+                                if (conn === 'open') {
+                                    console.log(`[${sessionId}] Reconnected successfully!`);
+                                }
+                            });
                             activeSockets.set(sessionId, { sock: newSock });
+                            console.log(`[${sessionId}] Reconnected with fresh auth state.`);
                         } catch (err) {
                             console.error(`[${sessionId}] Reconnect failed:`, err);
                         }
-                    }, 2000);
+                    }, 3000);
                 }
             }
 
