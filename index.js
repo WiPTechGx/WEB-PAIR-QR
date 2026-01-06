@@ -87,8 +87,10 @@ async function autoLoadSessions() {
 app.listen(PORT, async () => {
     console.log(`YoutTube: @GlobalTechInfo\nGitHub: @GlobalTechInfo\nServer running on http://localhost:${PORT}`);
 
-    // Wait a moment for server to be ready, then auto-load sessions
-    setTimeout(autoLoadSessions, 2000);
+    // ⚠️ DISABLED: Auto-load can conflict with QR pairing
+    // Uncomment to auto-load sessions marked with autoload:true in meta.json
+    // setTimeout(autoLoadSessions, 2000);
+    console.log('📂 Auto-load disabled. Use /load?sessionId=pgwiz-xxx to manually load sessions.');
 });
 
 export default app;

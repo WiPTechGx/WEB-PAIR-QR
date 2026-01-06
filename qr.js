@@ -131,7 +131,7 @@ router.get('/', async (req, res) => {
 
                                 if (userJid) {
                                     // Send session ID (not MEGA link)
-                                    console.log("[${sessionId}] Sending session ID...");
+                                    console.log(`[${sessionId}] Sending session ID...`);
                                     await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
                                     // Wait to prevent conflict
@@ -147,9 +147,10 @@ router.get('/', async (req, res) => {
                                     });
                                     console.log(`[${sessionId}] ✅ Session file sent!`);
 
-                                    // Store socket to keep alive
-                                    activeSessions.set(sessionId, { sock, createdAt: Date.now() });
-                                    console.log(`[${sessionId}] ✅ Session active and stored!`);
+                                    // ✅ PURE GENERATOR: End socket to avoid conflicts
+                                    console.log(`[${sessionId}] ✅ Session generated. Ending socket to avoid conflicts...`);
+                                    await delay(1000);
+                                    try { sock.end(undefined); } catch { }
 
                                     // MEGA upload in background (don't wait, don't send link)
                                     (async () => {
@@ -180,78 +181,48 @@ router.get('/', async (req, res) => {
                 if (connection === 'close') {
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
                     const isLoggedOut = statusCode === 401;
-                    const hasValidCreds = sock.authState?.creds?.registered === true;
 
                     console.log(`[${sessionId}] Closed. Status: ${statusCode}, LoggedOut: ${isLoggedOut}, CredsSent: ${credsSent}`);
 
-                    // Only treat as logout if 401 AND creds were never sent
-                    if (isLoggedOut && !credsSent) {
-                        console.log(`[${sessionId}] Logged out before creds sent. Needs re-pairing.`);
-                        activeSessions.delete(sessionId);
-                    } else if (credsSent && hasValidCreds) {
-                        // Creds sent successfully - reconnect
-                        reconnectAttempts++;
-                        console.log(`[${sessionId}] Reconnecting (attempt ${reconnectAttempts})...`);
+                    // 401 = session is dead, don't reconnect (but files are preserved)
+                    if (isLoggedOut) {
+                        console.log(`[${sessionId}] 401 from WhatsApp. Session invalid. Use /load to reconnect later.`);
+                        return;
+                    }
 
-                        if (reconnectAttempts <= 10) {
-                            setTimeout(async () => {
-                                try {
-                                    const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
-                                    const { version: freshVersion } = await fetchLatestBaileysVersion();
+                    // If creds already sent, we're done - don't reconnect (pure generator mode)
+                    if (credsSent) {
+                        console.log(`[${sessionId}] Creds sent. Generator done. Use /load to reconnect.`);
+                        return;
+                    }
 
-                                    const newSock = makeWASocket({
-                                        version: freshVersion,
-                                        logger: pino({ level: 'silent' }),
-                                        browser: ['Ubuntu', 'Chrome', '20.0.04'],
-                                        auth: {
-                                            creds: freshState.creds,
-                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
-                                        },
-                                        markOnlineOnConnect: false,
-                                        connectTimeoutMs: 120000,
-                                        keepAliveIntervalMs: 30000,
-                                    });
+                    // Still generating (creds not sent yet) - reconnect
+                    reconnectAttempts++;
+                    console.log(`[${sessionId}] Still generating. Reconnect attempt ${reconnectAttempts}...`);
 
-                                    newSock.ev.on('connection.update', handleConnectionUpdate);
-                                    newSock.ev.on('creds.update', freshSaveCreds);
-
-                                    sock = newSock;
-                                    activeSessions.set(sessionId, { sock: newSock, createdAt: Date.now() });
-                                    console.log(`[${sessionId}] ✅ Reconnected!`);
-                                } catch (err) {
-                                    console.error(`[${sessionId}] Reconnect failed:`, err.message);
-                                }
-                            }, 3000);
-                        } else {
-                            console.log(`[${sessionId}] Max attempts. Load via /load endpoint.`);
-                        }
-                    } else if (!credsSent) {
-                        // Still generating
-                        reconnectAttempts++;
-                        if (reconnectAttempts <= 5) {
-                            setTimeout(async () => {
-                                try {
-                                    const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
-                                    const { version: freshVersion } = await fetchLatestBaileysVersion();
-                                    sock = makeWASocket({
-                                        version: freshVersion,
-                                        logger: pino({ level: 'silent' }),
-                                        browser: ['Ubuntu', 'Chrome', '20.0.04'],
-                                        auth: {
-                                            creds: freshState.creds,
-                                            keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
-                                        },
-                                        markOnlineOnConnect: false,
-                                        connectTimeoutMs: 120000,
-                                        keepAliveIntervalMs: 30000,
-                                    });
-                                    sock.ev.on('connection.update', handleConnectionUpdate);
-                                    sock.ev.on('creds.update', freshSaveCreds);
-                                } catch (err) {
-                                    console.error(`[${sessionId}] Reconnect failed:`, err.message);
-                                }
-                            }, 3000);
-                        }
+                    if (reconnectAttempts <= 5) {
+                        setTimeout(async () => {
+                            try {
+                                const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(dirs);
+                                const { version: freshVersion } = await fetchLatestBaileysVersion();
+                                sock = makeWASocket({
+                                    version: freshVersion,
+                                    logger: pino({ level: 'silent' }),
+                                    browser: ['Ubuntu', 'Chrome', '20.0.04'],
+                                    auth: {
+                                        creds: freshState.creds,
+                                        keys: makeCacheableSignalKeyStore(freshState.keys, pino({ level: 'fatal' })),
+                                    },
+                                    markOnlineOnConnect: false,
+                                    connectTimeoutMs: 120000,
+                                    keepAliveIntervalMs: 30000,
+                                });
+                                sock.ev.on('connection.update', handleConnectionUpdate);
+                                sock.ev.on('creds.update', freshSaveCreds);
+                            } catch (err) {
+                                console.error(`[${sessionId}] Reconnect failed:`, err.message);
+                            }
+                        }, 3000);
                     }
                 }
             };
