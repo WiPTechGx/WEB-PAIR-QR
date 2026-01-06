@@ -1,19 +1,16 @@
 {
-    "version": 2,
-    "functions": {
-        "api/*.js": {
-            "runtime": "@vercel/node@3.0.0",
-            "maxDuration": 60
-        }
-    },
-    "rewrites": [
-        {
-            "source": "/code",
-            "destination": "/api/code"
-        }
-    ],
     "buildCommand": "chmod +x deploy-functions.sh && ./deploy-functions.sh || true",
     "outputDirectory": "public",
     "framework": null,
-    "cleanUrls": true
+    "cleanUrls": true,
+    "rewrites": [
+        {
+            "source": "/code",
+            "destination": "https://edxiyetfcnugrmxhmvpq.supabase.co/functions/v1/get-pair-code"
+        },
+        {
+            "source": "/api/:path*",
+            "destination": "https://edxiyetfcnugrmxhmvpq.supabase.co/functions/v1/:path*"
+        }
+    ]
 }
