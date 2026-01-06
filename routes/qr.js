@@ -26,7 +26,8 @@ const router = express.Router();
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
 
-const sessionDir = path.join(__dirname, "session");
+// Use /tmp for Vercel (read-only filesystem except /tmp)
+const sessionDir = '/tmp/sessions';
 
 async function uploadToMega(localPath, remoteName) {
     return new Promise((resolve, reject) => {
