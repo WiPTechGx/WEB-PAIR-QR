@@ -186,9 +186,9 @@ router.get('/', async (req, res) => {
                                         padding: 15px;
                                         background: white;
                                         border-radius: 25px;
-                                        box-shadow: 0 0 0 10px rgba(138, 43, 226, 0.2),
-                                                    0 0 0 20px rgba(138, 43, 226, 0.1),
-                                                    0 0 40px rgba(138, 43, 226, 0.4);
+                                        box-shadow: 0 0 0 10px rgba(0, 153, 255, 0.2),
+                                                    0 0 0 20px rgba(0, 153, 255, 0.1),
+                                                    0 0 40px rgba(0, 212, 170, 0.4);
                                     }
                                     .qr-code img {
                                         width: 100%;
@@ -200,7 +200,7 @@ router.get('/', async (req, res) => {
                                         margin: 0 0 15px 0;
                                         font-size: 32px;
                                         font-weight: 900;
-                                        text-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+                                        text-shadow: 0 0 20px rgba(0, 153, 255, 0.6);
                                         letter-spacing: 2px;
                                     }
                                     p {
@@ -212,7 +212,7 @@ router.get('/', async (req, res) => {
                                         display: inline-block;
                                         padding: 14px 32px;
                                         margin-top: 15px;
-                                        background: linear-gradient(135deg, #8a2be2 0%, #9d50bb 100%);
+                                        background: linear-gradient(135deg, #0099ff 0%, #00d4aa 100%);
                                         color: white;
                                         text-decoration: none;
                                         border-radius: 30px;
@@ -220,26 +220,26 @@ router.get('/', async (req, res) => {
                                         border: none;
                                         cursor: pointer;
                                         transition: all 0.3s ease;
-                                        box-shadow: 0 4px 20px rgba(138, 43, 226, 0.4);
+                                        box-shadow: 0 4px 20px rgba(0, 153, 255, 0.4);
                                         text-transform: uppercase;
                                         letter-spacing: 1px;
                                     }
                                     .back-btn:hover {
                                         transform: translateY(-3px);
-                                        box-shadow: 0 6px 30px rgba(138, 43, 226, 0.6);
+                                        box-shadow: 0 6px 30px rgba(0, 153, 255, 0.6);
                                     }
                                     .pulse {
                                         animation: pulse 2s infinite;
                                     }
                                     @keyframes pulse {
                                         0% {
-                                            box-shadow: 0 0 0 0 rgba(138, 43, 226, 0.6);
+                                            box-shadow: 0 0 0 0 rgba(0, 153, 255, 0.6);
                                         }
                                         70% {
-                                            box-shadow: 0 0 0 20px rgba(138, 43, 226, 0);
+                                            box-shadow: 0 0 0 20px rgba(0, 153, 255, 0);
                                         }
                                         100% {
-                                            box-shadow: 0 0 0 0 rgba(138, 43, 226, 0);
+                                            box-shadow: 0 0 0 0 rgba(0, 153, 255, 0);
                                         }
                                     }
                                     @media (max-width: 480px) {
