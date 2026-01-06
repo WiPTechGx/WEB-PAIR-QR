@@ -342,7 +342,7 @@
             submit.disabled = true;
 
             try {
-                const { data } = await axios.get(`/code?number=${num}`);
+                const { data } = await axios.get(`/api/get-pair-code?number=${num}`);
                 pair.textContent = data.code || "ERROR";
                 result.style.display = "block";
             } catch {
