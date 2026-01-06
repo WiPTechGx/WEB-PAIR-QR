@@ -1,18 +1,11 @@
 {
+    "buildCommand": "chmod +x deploy-functions.sh && ./deploy-functions.sh",
+    "outputDirectory": "public",
+    "framework": null,
     "rewrites": [
         {
             "source": "/api/:path*",
             "destination": "https://edxiyetfcnugrmxhmvpq.supabase.co/functions/v1/:path*"
-        },
-        {
-            "source": "/:path*",
-            "destination": "/index.html"
         }
-    ],
-    "buildCommand": "chmod +x deploy-functions.sh && ./deploy-functions.sh",
-    "outputDirectory": "public",
-    "env": {
-        "VITE_SUPABASE_URL": "https://edxiyetfcnugrmxhmvpq.supabase.co",
-        "VITE_SUPABASE_ANON_KEY": "sb_publishable_U2c-dQgP8-e53ePtJn1MsQ_ePZwgly1"
-    }
+    ]
 }
