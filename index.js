@@ -32,6 +32,53 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Download session by ID - accepts PGWIZ~FILEID#HASH format
+app.get('/download', (req, res) => {
+  const sessionId = req.query.id || '';
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID required', example: '/download?id=PGWIZ~abc123#xyz' });
+  }
+
+  // Parse session ID to MEGA URL
+  let megaUrl;
+  if (sessionId.startsWith('PGWIZ~')) {
+    const fileInfo = sessionId.replace('PGWIZ~', '');
+    megaUrl = `https://mega.nz/file/${fileInfo}`;
+  } else if (sessionId.includes('#')) {
+    megaUrl = `https://mega.nz/file/${sessionId}`;
+  } else {
+    return res.status(400).json({ error: 'Invalid session ID format', expected: 'PGWIZ~FILEID#HASH' });
+  }
+
+  res.redirect(megaUrl);
+});
+
+// API endpoint to get download link without redirect
+app.get('/api/session', (req, res) => {
+  const sessionId = req.query.id || '';
+
+  if (!sessionId) {
+    return res.status(400).json({ error: 'Session ID required' });
+  }
+
+  let megaUrl;
+  if (sessionId.startsWith('PGWIZ~')) {
+    const fileInfo = sessionId.replace('PGWIZ~', '');
+    megaUrl = `https://mega.nz/file/${fileInfo}`;
+  } else if (sessionId.includes('#')) {
+    megaUrl = `https://mega.nz/file/${sessionId}`;
+  } else {
+    return res.status(400).json({ error: 'Invalid session ID format' });
+  }
+
+  res.json({
+    sessionId: sessionId,
+    downloadUrl: megaUrl,
+    message: 'Click the download URL to get your creds.json file from MEGA'
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`
 PGWIZ Session Server
