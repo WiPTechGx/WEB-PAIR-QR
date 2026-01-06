@@ -32,8 +32,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Download session by ID - accepts PGWIZ~FILEID#HASH format
-app.get('/download', (req, res) => {
+// Download session by ID - downloads from MEGA and serves file directly
+app.get('/download', async (req, res) => {
+  const { File } = require('megajs');
   const sessionId = req.query.id || '';
 
   if (!sessionId) {
@@ -51,7 +52,31 @@ app.get('/download', (req, res) => {
     return res.status(400).json({ error: 'Invalid session ID format', expected: 'PGWIZ~FILEID#HASH' });
   }
 
-  res.redirect(megaUrl);
+  try {
+    console.log('Downloading from MEGA:', megaUrl);
+    const file = File.fromURL(megaUrl);
+
+    // Load file attributes
+    await file.loadAttributes();
+
+    // Set response headers for file download
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="creds.json"`);
+
+    // Stream file directly to response
+    const stream = file.download();
+    stream.pipe(res);
+
+    stream.on('error', (err) => {
+      console.error('Download stream error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to download file' });
+      }
+    });
+  } catch (err) {
+    console.error('MEGA download error:', err);
+    res.status(500).json({ error: 'Failed to download from MEGA', details: err.message });
+  }
 });
 
 // API endpoint to get download link without redirect
