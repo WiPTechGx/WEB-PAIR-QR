@@ -3,6 +3,11 @@ node_modules/
 qr_sessions/
 auth_info_baileys/
 auth_info_baileys_*/
+# Exclude transient Baileys files but keep creds.json and meta.json
+sessions/*/app-state*
+sessions/*/pre-key*
+sessions/*/sender-key*
+sessions/*/session-*
 npm-debug.log
 yarn-error.log
 .DS_Store

@@ -3,8 +3,8 @@ import fs from 'fs-extra';
 import pino from 'pino';
 import pn from 'awesome-phonenumber';
 import { exec } from 'child_process';
-import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {
     makeWASocket,
     useMultiFileAuthState,
@@ -16,7 +16,14 @@ import {
 } from '@whiskeysockets/baileys';
 import { upload as megaUpload } from './mega.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const router = express.Router();
+
+// Permanent sessions folder
+const SESSIONS_ROOT = path.join(__dirname, 'sessions');
+
 const MESSAGE = `
 *SESSION GENERATED SUCCESSFULLY* ✅
 
@@ -36,8 +43,6 @@ function randomMegaId(len = 6, numLen = 4) {
     return `${out}${number}`;
 }
 
-// ... (imports remain the same)
-
 router.get('/', async (req, res) => {
     let num = req.query.number;
     let customId = req.query.sessionId || '';
@@ -47,10 +52,12 @@ router.get('/', async (req, res) => {
     const randomID = Math.random().toString(36).substring(2, 6);
     const sessionId = customId ? `pgwiz-${customId}` : `pgwiz-${randomID}`;
 
-    const dirs = path.join(os.tmpdir(), `auth_info_baileys_${sessionId}`);
+    // Use permanent sessions folder
+    const dirs = path.join(SESSIONS_ROOT, sessionId);
 
-    if (!fs.existsSync(path.join(os.tmpdir(), 'auth_info_baileys'))) {
-        // Just in case we need a parent dir, though tmpdir creates per-run usually or specific paths
+    // Ensure sessions root exists
+    if (!fs.existsSync(SESSIONS_ROOT)) {
+        await fs.mkdir(SESSIONS_ROOT, { recursive: true });
     }
 
 

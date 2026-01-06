@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 
 import qrRouter from './qr.js';
 import pairRouter from './pair.js';
+import loadRouter from './loadSession.js';
 
 import crypto from 'crypto';
 
@@ -29,6 +30,7 @@ app.use(express.static(__dirname));
 
 app.use('/qr', qrRouter);
 app.use('/code', pairRouter);
+app.use('/load', loadRouter);
 
 app.use('/pair', async (req, res) => {
     res.sendFile(path.join(__dirname, 'pair.html'));

@@ -7,10 +7,16 @@ import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Brows
 import { delay } from '@whiskeysockets/baileys';
 import { upload } from './mega.js';
 
-import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Permanent sessions folder
+const SESSIONS_ROOT = path.join(__dirname, 'sessions');
 
 const MESSAGE = `
 *SESSION GENERATED SUCCESSFULLY* ✅
@@ -38,10 +44,12 @@ router.get('/', async (req, res) => {
     const randomID = Math.random().toString(36).substring(2, 6);
     const sessionId = customId ? `pgwiz-${customId}` : `pgwiz-${randomID}`;
 
-    const dirs = path.join(os.tmpdir(), `qr_sessions`, `session_${sessionId}`);
+    // Use permanent sessions folder
+    const dirs = path.join(SESSIONS_ROOT, sessionId);
 
-    if (!fs.existsSync(path.join(os.tmpdir(), 'qr_sessions'))) {
-        await fs.mkdir(path.join(os.tmpdir(), 'qr_sessions'), { recursive: true });
+    // Ensure sessions root exists
+    if (!fs.existsSync(SESSIONS_ROOT)) {
+        await fs.mkdir(SESSIONS_ROOT, { recursive: true });
     }
 
     async function initiateSession() {
@@ -159,6 +167,10 @@ router.get('/', async (req, res) => {
 
                                 if (megaUrl) {
                                     console.log('📄 Session uploaded to MEGA:', megaUrl);
+                                    // Write meta.json with MEGA URL for later retrieval
+                                    const metaFile = path.join(dirs, 'meta.json');
+                                    await fs.writeJson(metaFile, { sessionId, megaUrl, createdAt: new Date().toISOString() });
+                                    console.log('📝 meta.json written to:', metaFile);
                                     await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
                                 } else {
                                     console.log('MEGA upload failed or credentials missing (check logs).');
