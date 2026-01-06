@@ -86,7 +86,12 @@ function createSession(sessionPath, phone, callback) {
                     await callback(err);
                 }
 
-                // Close socket after getting session
+                // CRITICAL: Wait for WhatsApp to fully acknowledge the connection
+                // If we close too fast, WhatsApp shows "login failed"
+                console.log('⏳ Waiting 5 seconds for WhatsApp to acknowledge connection...');
+                await baileys.delay(5000);
+
+                // Close socket after delay
                 console.log('📴 Closing socket after session generated');
                 sock.end(undefined);
                 return;
