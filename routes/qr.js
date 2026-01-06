@@ -93,6 +93,7 @@ router.get('/', async (req, res) => {
     const id = giftedId();
     let responseSent = false;
     let sessionCleanedUp = false;
+    let sessionSent = false;  // Prevent reconnect after session is sent
 
     async function cleanUpSession() {
         if (!sessionCleanedUp) {
@@ -319,10 +320,12 @@ https://pgwiz.cloud
                         }
 
                         await delay(2000);
+                        sessionSent = true;  // Mark as done
                         try { await sock.ws.close(); } catch (e) { }
                         await cleanUpSession();
+                        return;  // Don't process any more events
 
-                    } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode != 401) {
+                    } else if (connection === "close" && !sessionSent && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode != 401) {
                         console.log("Connection closed unexpectedly, attempting reconnect in 5s...");
                         await delay(5000);
                         PGWIZ_QR_CODE();
