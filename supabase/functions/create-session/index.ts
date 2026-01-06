@@ -30,12 +30,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     const { type = 'qr', phone = null } = await req.json().catch(() => ({}))
-    
+
     const sessionId = generateSessionId()
-    
+
     // Insert session into database
     const { data, error } = await supabase
-      .from('sessions')
+      .from('botspg.sessions')
       .insert({
         session_id: sessionId,
         connection_type: type,

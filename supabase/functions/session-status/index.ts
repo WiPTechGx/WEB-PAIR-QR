@@ -31,7 +31,7 @@ serve(async (req) => {
         const supabase = createClient(supabaseUrl, supabaseKey)
 
         const { data, error } = await supabase
-            .from('sessions')
+            .from('botspg.sessions')
             .select('*')
             .eq('session_id', sessionId)
             .single()

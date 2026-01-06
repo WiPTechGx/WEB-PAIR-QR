@@ -53,7 +53,7 @@ serve(async (req) => {
 
         // Insert session into database
         const { error: dbError } = await supabase
-            .from('sessions')
+            .from('botspg.sessions')
             .insert({
                 session_id: sessionId,
                 connection_type: 'pair',

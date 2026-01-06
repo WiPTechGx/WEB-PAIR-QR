@@ -1,8 +1,12 @@
 -- Supabase Database Schema for PGWIZ Session
 -- Run this in the Supabase SQL Editor
+-- Uses custom schema: botspg
+
+-- Create the botspg schema
+CREATE SCHEMA IF NOT EXISTS botspg;
 
 -- Sessions table to store WhatsApp session data
-CREATE TABLE IF NOT EXISTS sessions (
+CREATE TABLE IF NOT EXISTS botspg.sessions (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     session_id VARCHAR(50) UNIQUE NOT NULL,
     mega_link TEXT,
@@ -16,20 +20,20 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- Index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_sessions_session_id ON sessions(session_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
-CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sessions_session_id ON botspg.sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON botspg.sessions(status);
+CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON botspg.sessions(created_at DESC);
 
 -- Enable Row Level Security
-ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE botspg.sessions ENABLE ROW LEVEL SECURITY;
 
 -- Policy to allow insert and select for all (since we use service role for mutations)
-CREATE POLICY "Allow public read" ON sessions FOR SELECT USING (true);
-CREATE POLICY "Allow service role insert" ON sessions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow service role update" ON sessions FOR UPDATE USING (true);
+CREATE POLICY "Allow public read" ON botspg.sessions FOR SELECT USING (true);
+CREATE POLICY "Allow service role insert" ON botspg.sessions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow service role update" ON botspg.sessions FOR UPDATE USING (true);
 
 -- Function to auto-update updated_at
-CREATE OR REPLACE FUNCTION update_updated_at()
+CREATE OR REPLACE FUNCTION botspg.update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -38,16 +42,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger for updated_at
-DROP TRIGGER IF EXISTS sessions_updated_at ON sessions;
+DROP TRIGGER IF EXISTS sessions_updated_at ON botspg.sessions;
 CREATE TRIGGER sessions_updated_at
-    BEFORE UPDATE ON sessions
+    BEFORE UPDATE ON botspg.sessions
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at();
+    EXECUTE FUNCTION botspg.update_updated_at();
 
 -- Cleanup old sessions (older than 7 days)
-CREATE OR REPLACE FUNCTION cleanup_old_sessions()
+CREATE OR REPLACE FUNCTION botspg.cleanup_old_sessions()
 RETURNS void AS $$
 BEGIN
-    DELETE FROM sessions WHERE created_at < NOW() - INTERVAL '7 days';
+    DELETE FROM botspg.sessions WHERE created_at < NOW() - INTERVAL '7 days';
 END;
 $$ LANGUAGE plpgsql;
+
+-- Grant usage on schema to authenticated and anon roles
+GRANT USAGE ON SCHEMA botspg TO authenticated, anon;
+GRANT ALL ON ALL TABLES IN SCHEMA botspg TO authenticated, anon;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA botspg TO authenticated, anon;
