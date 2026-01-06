@@ -10,18 +10,18 @@
 
     <style>
         :root {
-            --bg: #0a0f1a;
-            --glass: rgba(255, 255, 255, 0.08);
-            --border: rgba(255, 255, 255, 0.15);
+            --bg: #ffffff;
+            --glass: rgba(0, 0, 0, 0.04);
+            --border: rgba(0, 0, 0, 0.1);
             --primary: #0099ff;
             --secondary: #00d4aa;
-            --text: #ffffff;
-            --muted: #b8b8d1;
-            --success: #3ddc97;
+            --text: #1a1a2e;
+            --muted: #666680;
+            --success: #00c853;
             --error: #ff4d4d;
             --blur: blur(18px);
             --radius: 18px;
-            --glow: 0 0 25px rgba(0, 153, 255, .45);
+            --glow: 0 0 25px rgba(0, 153, 255, .35);
         }
 
         * {
@@ -32,10 +32,7 @@
 
         body {
             font-family: 'Poppins', system-ui, sans-serif;
-            background:
-                radial-gradient(circle at top left, #1b1b3a, transparent 45%),
-                radial-gradient(circle at bottom right, #2b1247, transparent 45%),
-                var(--bg);
+            background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             display: flex;
@@ -53,11 +50,11 @@
 
         .particle {
             position: absolute;
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             border-radius: 50%;
-            opacity: .35;
+            opacity: .5;
             animation: float 18s linear infinite;
         }
 
@@ -81,7 +78,7 @@
             text-decoration: none;
             border-radius: 999px;
             font-weight: 600;
-            box-shadow: var(--glow);
+            box-shadow: 0 4px 15px rgba(0, 153, 255, .3);
             display: flex;
             gap: 8px;
             align-items: center;
@@ -90,12 +87,12 @@
         .container {
             width: 100%;
             max-width: 480px;
-            background: var(--glass);
+            background: #fff;
             backdrop-filter: var(--blur);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 28px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, .1);
             animation: fadeUp .6s ease;
         }
 
