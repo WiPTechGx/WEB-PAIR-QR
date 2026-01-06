@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
                 auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })) },
                 printQRInTerminal: false,
                 logger: pino({ level: "fatal" }),
-                browser: Browsers.windows('Chrome'),
+                browser: ['Ubuntu', 'Chrome', '20.0.04'],
                 markOnlineOnConnect: false
             });
 
