@@ -2,6 +2,8 @@
     "buildCommand": "chmod +x deploy-functions.sh && ./deploy-functions.sh",
     "outputDirectory": "public",
     "framework": null,
+    "cleanUrls": true,
+    "trailingSlash": false,
     "rewrites": [
         {
             "source": "/api/:path*",
