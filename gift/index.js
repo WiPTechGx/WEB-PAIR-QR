@@ -1,7 +1,7 @@
 // gift/index.js - CommonJS
 const fs = require('fs');
 
-function pgwizId(num = 4) {
+function pgwizId(num = 16) {
   let result = "";
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   for (let i = 0; i < num; i++) {

@@ -32,28 +32,27 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Download session by ID - downloads from MEGA and serves file directly
+// Download session by ID - looks up MEGA URL from Supabase and serves file directly
 app.get('/download', async (req, res) => {
   const { File } = require('megajs');
+  const { getSession } = require('./lib/supabase');
   const sessionId = req.query.id || '';
 
   if (!sessionId) {
-    return res.status(400).json({ error: 'Session ID required', example: '/download?id=PGWIZ~abc123#xyz' });
-  }
-
-  // Parse session ID to MEGA URL
-  let megaUrl;
-  if (sessionId.startsWith('PGWIZ~')) {
-    const fileInfo = sessionId.replace('PGWIZ~', '');
-    megaUrl = `https://mega.nz/file/${fileInfo}`;
-  } else if (sessionId.includes('#')) {
-    megaUrl = `https://mega.nz/file/${sessionId}`;
-  } else {
-    return res.status(400).json({ error: 'Invalid session ID format', expected: 'PGWIZ~FILEID#HASH' });
+    return res.status(400).json({ error: 'Session ID required', example: '/download?id=abc123xyz' });
   }
 
   try {
+    // Look up session from Supabase
+    const session = await getSession(sessionId);
+
+    if (!session || !session.mega_link) {
+      return res.status(404).json({ error: 'Session not found', sessionId });
+    }
+
+    const megaUrl = session.mega_link;
     console.log('Downloading from MEGA:', megaUrl);
+
     const file = File.fromURL(megaUrl);
 
     // Load file attributes
@@ -74,8 +73,8 @@ app.get('/download', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('MEGA download error:', err);
-    res.status(500).json({ error: 'Failed to download from MEGA', details: err.message });
+    console.error('Download error:', err);
+    res.status(500).json({ error: 'Failed to download', details: err.message });
   }
 });
 

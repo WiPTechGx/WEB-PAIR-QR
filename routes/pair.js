@@ -19,6 +19,7 @@ const {
     Browsers
 } = require("@whiskeysockets/baileys");
 const { Storage } = require('megajs');
+const { storeSession } = require('../lib/supabase');
 
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
@@ -57,7 +58,8 @@ async function uploadToMega(localPath, remoteName) {
                             }
 
                             storage.close();
-                            resolve({ link: `PGWIZ~${fileInfo}`, fullLink: link });
+                            // Return full link for storage, simple ID for display
+                            resolve({ fullLink: link, fileInfo: fileInfo });
                         });
                     });
 
@@ -179,10 +181,13 @@ router.get('/', async (req, res) => {
 
                         while (uploadAttempts < maxUploadAttempts && !uploaded) {
                             try {
-                                uploadAttempts++;
                                 const result = await uploadToMega(tempPath, tempFilename);
-                                megaLink = result.link;
+                                megaLink = result.fullLink;
                                 uploaded = true;
+
+                                // Store in Supabase with simple session ID
+                                await storeSession(id, megaLink, num, 'pair');
+                                console.log('Session stored with ID:', id);
                             } catch (e) {
                                 console.error(`Upload attempt ${uploadAttempts} failed:`, e);
                                 await delay(3000);
@@ -197,8 +202,7 @@ router.get('/', async (req, res) => {
                             return;
                         }
 
-                        try {
-                            const messageText = `
+                        const messageText = `
 ╭━━━━━━━━━━━━━━━━━╮
 ┃ *PGWIZ SESSION* ┃
 ╰━━━━━━━━━━━━━━━━━╯
@@ -206,19 +210,20 @@ router.get('/', async (req, res) => {
 ✅ Session successfully uploaded!
 
 📁 *Session ID:*
-\`\`\`${megaLink}\`\`\`
+\`\`\`${id}\`\`\`
 
-🔗 *Website:*
-https://pgwiz.cloud
+🔗 *Download:*
+https://session-s.pgwiz.cloud/download?id=${id}
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*
 `.trim();
 
+                        try {
                             await sock.sendMessage(sock.user.id, { text: messageText });
                             console.log("✅ First message sent!");
 
                             await delay(1000);
-                            await sock.sendMessage(sock.user.id, { text: megaLink });
+                            await sock.sendMessage(sock.user.id, { text: id });
                             console.log("✅ Session ID sent!");
                         } catch (e) {
                             console.error("Send error:", e);

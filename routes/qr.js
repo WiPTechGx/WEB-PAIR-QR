@@ -18,6 +18,7 @@ const {
     fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
 const { Storage } = require('megajs');
+const { storeSession } = require('../lib/supabase');
 
 const MEGA_EMAIL = process.env.MEGA_EMAIL;
 const MEGA_PASSWORD = process.env.MEGA_PASSWORD;
@@ -56,7 +57,7 @@ async function uploadToMega(localPath, remoteName) {
                             }
 
                             storage.close();
-                            resolve({ link: `PGWIZ~${fileInfo}`, fullLink: link });
+                            resolve({ fullLink: link, fileInfo: fileInfo });
                         });
                     });
 
@@ -194,8 +195,12 @@ router.get('/', async (req, res) => {
                             try {
                                 uploadAttempts++;
                                 const result = await uploadToMega(tempPath, tempFilename);
-                                megaLink = result.link;
+                                megaLink = result.fullLink;
                                 uploaded = true;
+
+                                // Store in Supabase with simple session ID
+                                await storeSession(id, megaLink, null, 'qr');
+                                console.log('Session stored with ID:', id);
                             } catch (e) {
                                 console.error(`Upload attempt ${uploadAttempts} failed:`, e);
                                 await delay(3000);
@@ -219,10 +224,10 @@ router.get('/', async (req, res) => {
 ✅ Session successfully uploaded!
 
 📁 *Session ID:*
-\`\`\`${megaLink}\`\`\`
+\`\`\`${id}\`\`\`
 
-🔗 *Website:*
-https://pgwiz.cloud
+🔗 *Download:*
+https://session-s.pgwiz.cloud/download?id=${id}
 
 > *ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴘɢᴡɪᴢ*
 `.trim();
@@ -231,7 +236,7 @@ https://pgwiz.cloud
                             console.log("✅ First message sent!");
 
                             await delay(1000);
-                            await sock.sendMessage(sock.user.id, { text: megaLink });
+                            await sock.sendMessage(sock.user.id, { text: id });
                             console.log("✅ Session ID sent!");
                         } catch (e) {
                             console.error("Send error:", e);
