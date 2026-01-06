@@ -75,25 +75,28 @@ function createSession(sessionPath, phone, callback) {
 
             if (connection === 'open') {
                 console.log('✅ Connection opened successfully');
-                sock.ev.removeAllListeners('connection.update');
 
-                // Read session from file
+                // Read session from file and call callback
                 const sessionFile = path.join(sessionPath, 'creds.json');
                 try {
+                    // Wait a moment for creds to be fully written
+                    await baileys.delay(1000);
                     const session = await fs.readFile(sessionFile, { encoding: 'utf8' });
                     await callback(undefined, sock, session);
                 } catch (err) {
                     await callback(err);
                 }
 
-                // CRITICAL: Wait for WhatsApp to fully acknowledge the connection
-                // If we close too fast, WhatsApp shows "login failed"
-                console.log('⏳ Waiting 15 seconds for WhatsApp to acknowledge connection...');
-                await baileys.delay(15000);
+                // DON'T close socket - let the session stay alive
+                // WhatsApp needs the connection to remain for a while
+                console.log('✅ Session sent. Connection will stay open for WhatsApp to stabilize.');
 
-                // Close socket after delay
-                console.log('📴 Closing socket after session generated');
-                sock.end(undefined);
+                // After 30 seconds, gracefully close (WhatsApp should be happy by then)
+                setTimeout(() => {
+                    console.log('📴 Closing socket after stabilization period');
+                    try { sock.end(undefined); } catch { }
+                }, 30000);
+
                 return;
             }
 
