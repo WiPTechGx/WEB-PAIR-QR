@@ -3,6 +3,8 @@ import fs from 'fs-extra';
 import pino from 'pino';
 import pn from 'awesome-phonenumber';
 import { exec } from 'child_process';
+import os from 'os';
+import path from 'path';
 import {
     makeWASocket,
     useMultiFileAuthState,
@@ -18,21 +20,12 @@ const router = express.Router();
 const MESSAGE = `
 *SESSION GENERATED SUCCESSFULLY* ✅
 
-*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟
-https://github.com/GlobalTechInfo/MEGA-MD
-
-*Sᴜᴘᴘᴏʀᴛ Gʀᴏᴜᴘ ꜰᴏʀ ϙᴜᴇʀʏ* 💭
-https://t.me/Global_TechInfo
-https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07
-
-*Yᴏᴜ-ᴛᴜʙᴇ ᴛᴜᴛᴏʀɪᴀʟꜱ* 🪄 
-https://youtube.com/@GlobalTechInfo
-
-*MEGA-MD--WHATSAPP* 🥀
+*Made with love by pgwiz* 🥀
+profile: https://pgwiz.cloud
 `;
 
-async function removeFile(path) {
-    if (fs.existsSync(path)) await fs.remove(path);
+async function removeFile(pathStr) {
+    if (fs.existsSync(pathStr)) await fs.remove(pathStr);
 }
 
 function randomMegaId(len = 6, numLen = 4) {
@@ -47,8 +40,13 @@ function randomMegaId(len = 6, numLen = 4) {
 
 router.get('/', async (req, res) => {
     let num = req.query.number;
-    const sessionId = Math.random().toString(36).substring(2, 9);
-    const dirs = `./auth_info_baileys_${sessionId}`;
+    const randomID = Math.random().toString(36).substring(2, 6);
+    const sessionId = `pgwiz-${randomID}`;
+    const dirs = path.join(os.tmpdir(), `auth_info_baileys_${sessionId}`);
+
+    if (!fs.existsSync(path.join(os.tmpdir(), 'auth_info_baileys'))) {
+        // Just in case we need a parent dir, though tmpdir creates per-run usually or specific paths
+    }
 
 
     num = num.replace(/[^0-9]/g, '');
@@ -62,6 +60,7 @@ router.get('/', async (req, res) => {
 
     async function runSession() {
         try {
+            if (!fs.existsSync(dirs)) await fs.mkdir(dirs, { recursive: true });
             const { state, saveCreds } = await useMultiFileAuthState(dirs);
             const { version } = await fetchLatestBaileysVersion();
 
@@ -76,26 +75,30 @@ router.get('/', async (req, res) => {
 
             sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
                 if (connection === 'open') {
-                    const credsFile = `${dirs}/creds.json`;
+                    const credsFile = path.join(dirs, 'creds.json');
+                    const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
+
                     if (fs.existsSync(credsFile)) {
                         try {
-                            const id = randomMegaId();
-                            const megaLink = await megaUpload(fs.createReadStream(credsFile), `${id}.json`);
+                            // Rename/Copy for sending with unique name
+                            fs.copySync(credsFile, uniqueCredsFile);
 
                             const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
 
-                            if (megaLink) {
-                                const sessionId = megaLink.replace('https://mega.nz/file/', '');
-                                const m1 = await sock.sendMessage(userJid, { text: sessionId });
-                                await sock.sendMessage(userJid, { text: MESSAGE, quoted: m1 });
-                            } else {
-                                await sock.sendMessage(userJid, { text: "Session generated, but MEGA upload failed (credentials missing/invalid). Check server logs." });
-                            }
+                            await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
-                            await delay(800);
+                            await sock.sendMessage(userJid, {
+                                document: { url: uniqueCredsFile },
+                                mimetype: 'application/json',
+                                fileName: 'creds.json',
+                                caption: MESSAGE
+                            });
+
+                            await delay(10000); // Wait for file to send before cleanup
+                            // sock.end(); // Do not force close aggressively
                             await removeFile(dirs);
                         } catch (err) {
-                            console.error('Error sending Mega link:', err);
+                            console.error('Error sending session file:', err);
                             await removeFile(dirs);
                         }
                     }

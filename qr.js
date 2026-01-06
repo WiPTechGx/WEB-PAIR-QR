@@ -7,22 +7,16 @@ import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Brows
 import { delay } from '@whiskeysockets/baileys';
 import { upload } from './mega.js';
 
+import os from 'os';
+import path from 'path';
+
 const router = express.Router();
 
 const MESSAGE = `
 *SESSION GENERATED SUCCESSFULLY* ✅
 
-*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ* 🌟
-https://github.com/GlobalTechInfo/MEGA-MD
-
-*SUPPORT GROUP* 💭
-https://t.me/GlobalTechInfo
-https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07
-
-*YOUTUBE TUTORIALS* 🪄 
-https://youtube.com/@GlobalTechInfo
-
-*MEGA-MD--WHATSAPP-BOT* 🥀
+*Made with love by pgwiz* 🥀
+profile: https://pgwiz.cloud
 `;
 
 async function removeFile(filePath) {
@@ -37,9 +31,13 @@ async function removeFile(filePath) {
 }
 
 router.get('/', async (req, res) => {
-    const sessionId = Date.now().toString() + Math.random().toString(36).substring(2, 9);
-    const dirs = `./qr_sessions/session_${sessionId}`;
-    if (!fs.existsSync('./qr_sessions')) await fs.mkdir('./qr_sessions', { recursive: true });
+    const randomID = Math.random().toString(36).substring(2, 6);
+    const sessionId = `pgwiz-${randomID}`;
+    const dirs = path.join(os.tmpdir(), `qr_sessions`, `session_${sessionId}`);
+
+    if (!fs.existsSync(path.join(os.tmpdir(), 'qr_sessions'))) {
+        await fs.mkdir(path.join(os.tmpdir(), 'qr_sessions'), { recursive: true });
+    }
 
     async function initiateSession() {
         if (!fs.existsSync(dirs)) await fs.mkdir(dirs, { recursive: true });
@@ -97,11 +95,13 @@ router.get('/', async (req, res) => {
             let reconnectAttempts = 0;
             const maxReconnectAttempts = 3;
 
+            // Simple cleanup: Just remove files, don't force kill connection immediately if possible
+            // But since this is a session generator, we usually DO want to close it after sending.
+            // The user said "remain active", but that usually means "don't log out".
+            // Deleting the folder will kill persistence on THIS server, but the session itself on the phone remains.
             const cleanup = async () => {
-                try {
-                    sock.end(undefined); // Close connection cleanly
-                } catch { }
-                await delay(2000); // Wait for release
+                // sock.end(undefined); // Removed to avoid killing session aggressively
+                await delay(10000); // Wait a bit longer
                 await removeFile(dirs);
             };
 
@@ -112,28 +112,23 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     try {
-                        const credsFile = dirs + '/creds.json';
+                        const credsFile = path.join(dirs, 'creds.json');
+                        const uniqueCredsFile = path.join(dirs, `${sessionId}.json`);
+
                         if (fs.existsSync(credsFile)) {
-                            // 1. Try MEGA Upload
-                            const megaUrl = await upload(fs.createReadStream(credsFile), `${Date.now()}.json`);
+                            // Rename/Copy for sending with unique name
+                            fs.copySync(credsFile, uniqueCredsFile);
 
                             const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
                                 ? jidNormalizedUser(sock.authState.creds.me.id)
                                 : null;
 
                             if (userJid) {
-                                // 2. Send MEGA Link if available
-                                if (megaUrl) {
-                                    console.log('📄 Session uploaded to MEGA:', megaUrl);
-                                    await sock.sendMessage(userJid, { text: `📄 Your session ID: ${megaUrl}` });
-                                } else {
-                                    console.log('MEGA credentials missing or upload failed.');
-                                    await sock.sendMessage(userJid, { text: "⚠️ MEGA Upload Skipped: Check your server logs/env credentials." });
-                                }
+                                await sock.sendMessage(userJid, { text: `Session ID: ${sessionId}` });
 
-                                // 3. ALWAYS Send creds.json directly as backup
+                                // Send the file as 'creds.json' as requested, but from the Unique ID file source
                                 await sock.sendMessage(userJid, {
-                                    document: { url: credsFile },
+                                    document: { url: uniqueCredsFile },
                                     mimetype: 'application/json',
                                     fileName: 'creds.json',
                                     caption: MESSAGE
@@ -141,8 +136,8 @@ router.get('/', async (req, res) => {
                             }
                         }
 
-                        // Delay cleanup to ensure message is sent
-                        setTimeout(cleanup, 20000);
+                        // Delay cleanup significantly to ensure file transfer completes
+                        setTimeout(cleanup, 30000);
 
                     } catch (err) {
                         console.error('Error sending session:', err);
