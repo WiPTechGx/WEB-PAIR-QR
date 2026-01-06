@@ -100,8 +100,10 @@ router.get('/', async (req, res) => {
             // The user said "remain active", but that usually means "don't log out".
             // Deleting the folder will kill persistence on THIS server, but the session itself on the phone remains.
             const cleanup = async () => {
-                // sock.end(undefined); // Removed to avoid killing session aggressively
-                await delay(10000); // Wait a bit longer
+                try {
+                    sock.end(undefined); // Close connection cleanly to allow file deletion/prevent errors
+                } catch { }
+                await delay(3000); // 3s wait is enough if socket is closed
                 await removeFile(dirs);
             };
 

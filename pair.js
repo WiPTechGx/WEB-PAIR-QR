@@ -94,8 +94,8 @@ router.get('/', async (req, res) => {
                                 caption: MESSAGE
                             });
 
-                            await delay(10000); // Wait for file to send before cleanup
-                            // sock.end(); // Do not force close aggressively
+                            await delay(3000); // Wait for file to send
+                            try { sock.end(undefined); } catch { }
                             await removeFile(dirs);
                         } catch (err) {
                             console.error('Error sending session file:', err);
